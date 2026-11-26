@@ -8,6 +8,7 @@ docker run --rm `
   -v "${root}:/src" `
   -v brightline-nuget:/root/.nuget/packages `
   -v /var/run/docker.sock:/var/run/docker.sock `
+  -e BRIGHTLINE_HOST=host.docker.internal `
   --add-host host.docker.internal:host-gateway `
   -w /src brightline-dev @cmd
 exit $LASTEXITCODE

@@ -24,6 +24,7 @@ public sealed class PostgresFixture : IAsyncLifetime
         await using var cmd = new NpgsqlCommand($"CREATE DATABASE \"{name}\"", conn);
         await cmd.ExecuteNonQueryAsync();
 
-        return new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = name }.ConnectionString;
+        // Generous timeouts: Docker Desktop port forwarding can be slow when many tests open connections at once.
+        return new NpgsqlConnectionStringBuilder(_container.GetConnectionString()) { Database = name, Timeout = 60, CommandTimeout = 60 }.ConnectionString;
     }
 }

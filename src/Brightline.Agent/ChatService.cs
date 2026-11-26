@@ -217,11 +217,12 @@ public sealed class ChatService(
         if (raw.Length > 0 || tokensIn + tokensOut > 0)
         {
             var (clean, cited) = CitationProcessor.Process(raw, Session.Citations);
+            var (markers, validMarkers) = CitationProcessor.Count(raw, Session.Citations);
             var offerTicket = clean.Contains(Prompts.IDontKnowPhrase, StringComparison.OrdinalIgnoreCase);
             await store.AddMessageAsync(Session, MessageRole.Assistant, clean, cited, ttft, tokensIn, tokensOut, aiOptions.Value.ChatModel, CancellationToken.None);
             if (clean.Length > 0)
             {
-                yield return new AssistantMessage(clean, cited, ttft, offerTicket, tokensIn, tokensOut);
+                yield return new AssistantMessage(clean, cited, ttft, offerTicket, tokensIn, tokensOut, markers, validMarkers);
             }
         }
 

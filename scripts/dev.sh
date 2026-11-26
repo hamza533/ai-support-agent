@@ -11,5 +11,6 @@ MSYS_NO_PATHCONV=1 docker run --rm \
   -v "$MOUNT:/src" \
   -v brightline-nuget:/root/.nuget/packages \
   -v /var/run/docker.sock:/var/run/docker.sock \
+  -e BRIGHTLINE_HOST=host.docker.internal \
   --add-host host.docker.internal:host-gateway \
   -w /src brightline-dev "$@"

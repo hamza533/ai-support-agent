@@ -20,6 +20,8 @@ public interface ILegacyOrdersClient
     Task<OrderDetail?> GetOrderAsync(int customerId, string orderNumber, CancellationToken ct = default);
 
     Task<CreateReturnResult> CreateReturnAsync(int customerId, NewReturn request, string idempotencyKey, CancellationToken ct = default);
+
+    Task<IReadOnlyList<ReturnInfo>> ListReturnsAsync(int customerId, CancellationToken ct = default);
 }
 
 public sealed class LegacyOrdersClient(HttpClient http, ILogger<LegacyOrdersClient> logger) : ILegacyOrdersClient
@@ -87,6 +89,14 @@ public sealed class LegacyOrdersClient(HttpClient http, ILogger<LegacyOrdersClie
             var created = await response.Content.ReadFromJsonAsync<ReturnInfo>(Json, ct)
                 ?? throw new LegacyOrdersUnavailableException("Empty response from the order system.");
             return new CreateReturnResult(created, response.StatusCode == HttpStatusCode.Created);
+        });
+
+    public Task<IReadOnlyList<ReturnInfo>> ListReturnsAsync(int customerId, CancellationToken ct = default) =>
+        SendAsync(async () =>
+        {
+            using var response = await http.GetAsync($"api/customers/{customerId}/returns", ct);
+            await EnsureSuccessAsync(response, ct);
+            return (IReadOnlyList<ReturnInfo>)(await response.Content.ReadFromJsonAsync<List<ReturnInfo>>(Json, ct) ?? []);
         });
 
     private async Task<T> SendAsync<T>(Func<Task<T>> call)
