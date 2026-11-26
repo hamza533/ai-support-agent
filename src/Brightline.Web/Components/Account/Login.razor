@@ -1,0 +1,86 @@
+@page "/account/login"
+@attribute [ExcludeFromInteractiveRouting]
+@layout AuthLayout
+@using System.ComponentModel.DataAnnotations
+@using Brightline.Web.Infrastructure
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.Extensions.Options
+@inject SignInManager<AppUser> SignInManager
+@inject NavigationManager Navigation
+@inject IOptions<EntraIdOptions> EntraId
+@inject ILogger<Login> Logger
+
+<PageTitle>Staff sign in · Brightline Admin</PageTitle>
+
+<Card Class="auth-card">
+    <CardHeader>
+        <div class="brand" style="margin-bottom:8px"><span class="brand-mark"><LucideIcon Name="zap" Size="16" /></span> Brightline Admin</div>
+        <CardTitle><h1 style="font-size:20px">Staff sign in</h1></CardTitle>
+        <CardDescription>Sign in to manage documents, conversations and tickets.</CardDescription>
+    </CardHeader>
+    <CardContent>
+        <EditForm Model="Input!" method="post" OnValidSubmit="SignInAsync" FormName="login" class="stack">
+            <DataAnnotationsValidator />
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <Alert Variant="AlertVariant.Destructive"><AlertDescription>@_error</AlertDescription></Alert>
+            }
+            <div class="stack-sm">
+                <label for="email" class="small">Email</label>
+                <InputText id="email" @bind-Value="Input!.Email" class="native-select" autocomplete="username" aria-required="true" />
+                <ValidationMessage For="() => Input!.Email" />
+            </div>
+            <div class="stack-sm">
+                <label for="password" class="small">Password</label>
+                <InputText id="password" type="password" @bind-Value="Input!.Password" class="native-select" autocomplete="current-password" aria-required="true" />
+                <ValidationMessage For="() => Input!.Password" />
+            </div>
+            <Button Type="ButtonType.Submit" Class="w-full">Sign in</Button>
+        </EditForm>
+    </CardContent>
+    @if (EntraId.Value.Enabled)
+    {
+        <CardFooter>
+            <LinkButton Href="@($"/account/external/{AuthExtensions.EntraScheme}?returnUrl={Uri.EscapeDataString(AuthExtensions.SafeReturnUrl(ReturnUrl))}")"
+                        Variant="ButtonVariant.Outline" Class="w-full">
+                Sign in with Microsoft Entra ID
+            </LinkButton>
+        </CardFooter>
+    }
+</Card>
+
+@code {
+    private string? _error;
+
+    protected override void OnInitialized() => Input ??= new();
+
+    [SupplyParameterFromForm]
+    private LoginModel? Input { get; set; }
+
+    [SupplyParameterFromQuery]
+    private string? ReturnUrl { get; set; }
+
+    private async Task SignInAsync()
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input!.Email, Input.Password, isPersistent: false, lockoutOnFailure: true);
+        if (result.Succeeded)
+        {
+            Navigation.NavigateTo(AuthExtensions.SafeReturnUrl(ReturnUrl), forceLoad: true);
+            return;
+        }
+
+        Logger.LogWarning("Failed staff sign-in (locked out: {LockedOut})", result.IsLockedOut);
+        _error = result.IsLockedOut
+            ? "Too many attempts. Try again in 15 minutes."
+            : "Invalid email or password.";
+    }
+
+    private sealed class LoginModel
+    {
+        [Required, EmailAddress]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        public string Password { get; set; } = string.Empty;
+    }
+}

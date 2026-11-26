@@ -1,9 +1,10 @@
+extern alias legacy;
 using System.Net;
 using System.Net.Http.Json;
 using Brightline.IntegrationTests.Infrastructure;
-using Brightline.LegacyOrders.Api;
 using Brightline.LegacyOrders.Client;
-using Brightline.LegacyOrders.Data;
+using legacy::Brightline.LegacyOrders.Api;
+using legacy::Brightline.LegacyOrders.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 

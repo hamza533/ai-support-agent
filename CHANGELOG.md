@@ -9,3 +9,6 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - M1 legacy Orders & Returns API (`Brightline.LegacyOrders`): own database + EF migrations, deterministic seed (50 customers,
   150 orders, demo story), API key auth, OpenAPI + Scalar, idempotent return creation, demo reset endpoint, health/ready.
 - M1 typed client (`Brightline.LegacyOrders.Client`) with the standard resilience pipeline; Testcontainers integration tests.
+- M2 app database (EF migrations, pgvector + generated tsvector), ASP.NET Core Identity (admin/staff) with optional Entra ID,
+  Data Protection keys in Postgres, durable job queue + worker + retention purge, /health + /ready, rate limiting,
+  security headers + CSP, OpenTelemetry (Aspire Dashboard / Application Insights), `--migrate` / `--create-admin`.

@@ -1,0 +1,19 @@
+@inject NavigationManager Navigation
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthState { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var user = AuthState is null ? null : (await AuthState).User;
+        if (user?.Identity?.IsAuthenticated == true)
+        {
+            Navigation.NavigateTo("/account/denied", forceLoad: true);
+            return;
+        }
+
+        var returnUrl = Uri.EscapeDataString("/" + Navigation.ToBaseRelativePath(Navigation.Uri));
+        Navigation.NavigateTo($"/account/login?returnUrl={returnUrl}", forceLoad: true);
+    }
+}

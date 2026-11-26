@@ -1,0 +1,15 @@
+@inherits LayoutComponentBase
+
+<AppProvider>
+    @Body
+    <ToastViewport />
+    <DialogHost />
+</AppProvider>
+
+@* Overlay components (sheets, popovers) render into these hosts. *@
+<NeoUI.Blazor.Primitives.Services.ContainerPortalHost />
+<NeoUI.Blazor.Primitives.Services.OverlayPortalHost />
+
+<div id="blazor-error-ui" class="hidden" role="alert">
+    Something went wrong. <a href="" class="reload">Reload</a>
+</div>

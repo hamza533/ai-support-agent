@@ -1,0 +1,18 @@
+@page "/account/denied"
+@attribute [ExcludeFromInteractiveRouting]
+@layout AuthLayout
+
+<PageTitle>Access denied · Brightline Admin</PageTitle>
+
+<Card Class="auth-card">
+    <CardHeader>
+        <CardTitle><h1 style="font-size:20px">Access denied</h1></CardTitle>
+        <CardDescription>Your account doesn't have access to this page. Ask an admin to add the staff role.</CardDescription>
+    </CardHeader>
+    <CardFooter>
+        <form method="post" action="/account/logout">
+            <AntiforgeryToken />
+            <Button Type="ButtonType.Submit" Variant="ButtonVariant.Outline">Sign out</Button>
+        </form>
+    </CardFooter>
+</Card>
