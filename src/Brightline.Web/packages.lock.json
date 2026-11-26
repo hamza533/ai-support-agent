@@ -135,6 +135,14 @@
           "OpenTelemetry.PersistentStorage.FileSystem": "1.0.3"
         }
       },
+      "DocumentFormat.OpenXml.Framework": {
+        "type": "Transitive",
+        "resolved": "3.5.1",
+        "contentHash": "U5txtc3ORno73xQx9Lf2gWzfaSZnZwKHfLkTAslhlew9lxe5XbUiCt0dY1fHeAf8yRqszUAe5i/+xLC9R/Xfsw==",
+        "dependencies": {
+          "System.IO.Packaging": "10.0.2"
+        }
+      },
       "Google.Protobuf": {
         "type": "Transitive",
         "resolved": "3.30.2",
@@ -392,6 +400,11 @@
           "Microsoft.IdentityModel.Tokens": "8.19.2"
         }
       },
+      "System.IO.Packaging": {
+        "type": "Transitive",
+        "resolved": "10.0.2",
+        "contentHash": "JTpM4z0wpoIHHDvlCU27HsXo+zVnpWib94HXQpzzr+jc/P9NYf4w353AK4MXyGq/grm1mbLi7eXsOsDU8sGmNg=="
+      },
       "System.Memory.Data": {
         "type": "Transitive",
         "resolved": "10.0.10",
@@ -418,7 +431,10 @@
       "brightline.ai": {
         "type": "Project",
         "dependencies": {
-          "Microsoft.Extensions.AI": "[10.11.1, )"
+          "Azure.Identity": "[1.21.0, )",
+          "Microsoft.Extensions.AI": "[10.11.1, )",
+          "Microsoft.Extensions.AI.OpenAI": "[10.11.1, )",
+          "OpenAI": "[2.15.0, )"
         }
       },
       "brightline.data": {
@@ -433,7 +449,12 @@
         "type": "Project",
         "dependencies": {
           "Brightline.Ai": "[0.1.0, )",
-          "Brightline.Data": "[0.1.0, )"
+          "Brightline.Data": "[0.1.0, )",
+          "CommunityToolkit.VectorData.PgVector": "[1.0.2, )",
+          "DocumentFormat.OpenXml": "[3.5.1, )",
+          "Markdig": "[1.6.0, )",
+          "PdfPig": "[0.1.16, )",
+          "Pgvector": "[0.3.2, )"
         }
       },
       "brightline.legacyorders.client": {
@@ -453,6 +474,36 @@
           "Microsoft.Identity.Client.Extensions.Msal": "4.92.0",
           "System.ClientModel": "1.17.0",
           "System.Memory.Data": "10.0.10"
+        }
+      },
+      "Azure.Identity": {
+        "type": "CentralTransitive",
+        "requested": "[1.21.0, )",
+        "resolved": "1.21.0",
+        "contentHash": "GeFv8sGwRKvDKwI2WFy8r0mhmlxEVZg24Sit2NogTjiSO8RVjllWM65OT6e1sKjOvG8V74y7hAbaELUUPjZQSw==",
+        "dependencies": {
+          "Azure.Core": "1.53.0"
+        }
+      },
+      "CommunityToolkit.VectorData.PgVector": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.2, )",
+        "resolved": "1.0.2",
+        "contentHash": "v3kvv3YvHb/warQU+taXKnaC1+xjPyWfkbA0mny7aB5Zwi5z7THYRkL3WF3j9EZ8LN6rAq0CqbiEmOPk25e2zA==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.8.3",
+          "Microsoft.Extensions.VectorData.Abstractions": "10.8.2",
+          "Npgsql": "10.0.3",
+          "Pgvector": "0.3.2"
+        }
+      },
+      "DocumentFormat.OpenXml": {
+        "type": "CentralTransitive",
+        "requested": "[3.5.1, )",
+        "resolved": "3.5.1",
+        "contentHash": "zxdOf5VVCe/uNklbRhj8dVBzQGj3DoqkUuqOp9cAZVuN8mNYDjof1lvSQA2OQNr8Ptc9d7pbA7Azq/ReaI3FpA==",
+        "dependencies": {
+          "DocumentFormat.OpenXml.Framework": "3.5.1"
         }
       },
       "Markdig": {
@@ -528,6 +579,16 @@
           "Microsoft.Extensions.AI.Abstractions": "10.11.1"
         }
       },
+      "Microsoft.Extensions.AI.OpenAI": {
+        "type": "CentralTransitive",
+        "requested": "[10.11.1, )",
+        "resolved": "10.11.1",
+        "contentHash": "i7/NS7BfByBF5on8UP0GDjeqWYIjkGG0b6ikQa/KkxXnVvgi/2bq/Z589zZ8UqNNeHjHgHDMviOPu6UStisOpQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.11.1",
+          "OpenAI": "2.14.0"
+        }
+      },
       "Microsoft.Extensions.Http.Resilience": {
         "type": "CentralTransitive",
         "requested": "[10.11.1, )",
@@ -562,6 +623,30 @@
           "Microsoft.EntityFrameworkCore": "[10.0.15, 11.0.0)",
           "Microsoft.EntityFrameworkCore.Relational": "[10.0.15, 11.0.0)",
           "Npgsql": "10.0.4"
+        }
+      },
+      "OpenAI": {
+        "type": "CentralTransitive",
+        "requested": "[2.15.0, )",
+        "resolved": "2.15.0",
+        "contentHash": "04Lvp/guze35OdYsEcQY58SmSCBWCEDCGkiLiTQXDJy5L3d20n7I/zg94ry9hQ5c4dMDF1ASqlxD/IIMy47gFg==",
+        "dependencies": {
+          "System.ClientModel": "1.16.0"
+        }
+      },
+      "PdfPig": {
+        "type": "CentralTransitive",
+        "requested": "[0.1.16, )",
+        "resolved": "0.1.16",
+        "contentHash": "qQcbsNMYVY+K5ELptax2S8thNMk0+rSQq3H/KdYj3LLcko8yTCz8y5KIvsKxIyAuTN0ZYNnfsZkM+0EvxTwHVA=="
+      },
+      "Pgvector": {
+        "type": "CentralTransitive",
+        "requested": "[0.3.2, )",
+        "resolved": "0.3.2",
+        "contentHash": "n7M5LuNejHUmtWky3zCbNO+tP1Gnjiuv9Qtu4LyvB1602dD8RiBxxCQp9jEjM0ZFDxAZF1oOWkNIkXw46KT00Q==",
+        "dependencies": {
+          "Npgsql": "8.0.5"
         }
       },
       "System.ClientModel": {

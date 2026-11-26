@@ -1,6 +1,20 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <NoWarn>$(NoWarn);MEAI001</NoWarn>
+  </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\Brightline.Data\Brightline.Data.csproj" />
     <ProjectReference Include="..\Brightline.Ai\Brightline.Ai.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.VectorData.PgVector" />
+    <PackageReference Include="Pgvector" />
+    <PackageReference Include="PdfPig" />
+    <PackageReference Include="DocumentFormat.OpenXml" />
+    <PackageReference Include="Markdig" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Brightline.UnitTests" />
+    <InternalsVisibleTo Include="Brightline.IntegrationTests" />
   </ItemGroup>
 </Project>

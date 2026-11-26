@@ -9,7 +9,10 @@ RUN dotnet publish src/Brightline.Web/Brightline.Web.csproj -c Release -o /app -
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
-ENV ASPNETCORE_URLS=http://+:8080     DOTNET_RUNNING_IN_CONTAINER=true
+COPY sample_data/ ./sample_data/
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true \
+    Knowledge__SampleDataPath=/app/sample_data/help-center
 EXPOSE 8080
 # Non-root user provided by the official image (UID 1654)
 USER $APP_UID

@@ -12,3 +12,6 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - M2 app database (EF migrations, pgvector + generated tsvector), ASP.NET Core Identity (admin/staff) with optional Entra ID,
   Data Protection keys in Postgres, durable job queue + worker + retention purge, /health + /ready, rate limiting,
   security headers + CSP, OpenTelemetry (Aspire Dashboard / Application Insights), `--migrate` / `--create-admin`.
+- M3 `Brightline.Ai` (IChatClient / IEmbeddingGenerator per `Ai:Provider`, throttle, timeouts/retries) and
+  `Brightline.Knowledge` (PDF/DOCX/Markdown parsing with magic-byte checks, chunking, pgvector + full-text hybrid
+  search merged with RRF, atomic re-index, ingestion jobs); synthetic help-centre documents in `sample_data/`.
