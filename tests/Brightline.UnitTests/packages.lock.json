@@ -830,6 +830,15 @@
           "Npgsql.EntityFrameworkCore.PostgreSQL": "[10.0.4, )"
         }
       },
+      "brightline.eval": {
+        "type": "Project",
+        "dependencies": {
+          "Brightline.Agent": "[0.1.0, )",
+          "Microsoft.Extensions.AI.Evaluation": "[10.11.1, )",
+          "Microsoft.Extensions.AI.Evaluation.Quality": "[10.11.1, )",
+          "Microsoft.Extensions.AI.Evaluation.Reporting": "[10.11.1, )"
+        }
+      },
       "brightline.knowledge": {
         "type": "Project",
         "dependencies": {
@@ -1023,6 +1032,25 @@
         "contentHash": "YpxsdXhjUA4Q45YeXU0fh2NuetNqE1OlcNSKGUAIYMsA6/UyB8UAdqIIDx3f8+64j7Vt2l3knhahNe5r+TaqYQ==",
         "dependencies": {
           "Microsoft.Extensions.AI.Abstractions": "10.11.1"
+        }
+      },
+      "Microsoft.Extensions.AI.Evaluation.Quality": {
+        "type": "CentralTransitive",
+        "requested": "[10.11.1, )",
+        "resolved": "10.11.1",
+        "contentHash": "zZ9x6JMyXSOwTpxaL0MfLtACMCJcqpD1s9UJJ/5ky/CDByvuqxZL2/OhwKfeDqAGawlUP4ndakP7HLTCECvcSQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Evaluation": "10.11.1"
+        }
+      },
+      "Microsoft.Extensions.AI.Evaluation.Reporting": {
+        "type": "CentralTransitive",
+        "requested": "[10.11.1, )",
+        "resolved": "10.11.1",
+        "contentHash": "bK0EDlGJQrFgtYJKcNGjSRo/oRWS6SYJTCVAT6TiQ6kbnmVpzBGZlxRvo+Ja6UWU41iyVeM1LMci8fcTCtGyvQ==",
+        "dependencies": {
+          "Microsoft.Extensions.AI": "10.11.1",
+          "Microsoft.Extensions.AI.Evaluation": "10.11.1"
         }
       },
       "Microsoft.Extensions.AI.OpenAI": {

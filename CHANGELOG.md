@@ -23,3 +23,5 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   (transcript, citations, agent trace with masked inputs and approvals, tokens, cost), tickets (drawer with status +
   notes), documents (upload, re-index, delete, live ingestion jobs with retry), settings (agent, policies, locked
   approvals, access), "Test as customer"; role checks (staff read, admin change).
+- M7 evaluation harness (`make eval`): AI.Evaluation groundedness/relevance/completeness on 40 questions, "I don't know"
+  on 8 unanswerable, 25 agent scenarios with database and legacy-API state assertions, TTFT/tokens/cost, results.md/json.

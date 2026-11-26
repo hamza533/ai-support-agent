@@ -31,7 +31,9 @@ public sealed record AssistantMessage(
     int? TtftMs,
     bool OfferTicket,
     long TokensIn,
-    long TokensOut) : ChatEvent;
+    long TokensOut,
+    int CitationMarkers = 0,
+    int ValidCitationMarkers = 0) : ChatEvent;
 
 public sealed record ChatError(string Kind, string Message) : ChatEvent;
 

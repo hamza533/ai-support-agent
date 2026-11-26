@@ -1,10 +1,10 @@
 # PROGRESS – handoff log
 
 ## Status
-- **Current milestone:** M7 – Evaluation
-- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding; M5 customer Help Center + streaming chat (citations, verified chip, order card, confirmation cards, What I did, ticket offer, order-system-down state, cold-start message) with bUnit tests; M6 admin console (overview stats + chart, conversations with transcript/citations/agent trace/tokens/cost, tickets with drawer, documents + live ingestion jobs with retry, settings with admin-only save and locked approvals, staff users, Test as customer) (97 tests green)
-- **In progress:** M7
-- **Next:** M8 – End-to-end, demo mode, deploy guides, Bicep, README
+- **Current milestone:** M8 – End-to-end, demo mode, deploy, Bicep, README
+- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding; M5 customer Help Center + streaming chat (citations, verified chip, order card, confirmation cards, What I did, ticket offer, order-system-down state, cold-start message) with bUnit tests; M6 admin console (overview stats + chart, conversations with transcript/citations/agent trace/tokens/cost, tickets with drawer, documents + live ingestion jobs with retry, settings with admin-only save and locked approvals, staff users, Test as customer); M7 eval harness (40+8 questions with AI.Evaluation quality evaluators, 25 agent scenarios with DB + legacy-state assertions, performance metrics, results.md/json writer) (102 tests green)
+- **In progress:** M8
+- **Next:** M9 – Final check
 
 | # | Milestone | Status |
 |---|---|---|
@@ -15,8 +15,8 @@
 | M4 | Agent + tools | ✅ done |
 | M5 | Customer chat UI | ✅ done |
 | M6 | Admin console | ✅ done |
-| M7 | Evaluation | in progress |
-| M8 | End-to-end + demo + production profile | – |
+| M7 | Evaluation | ✅ harness done · numbers need a Gemini key |
+| M8 | End-to-end + demo + production profile | in progress |
 | M9 | Final check | – |
 
 ## Blockers / open questions
@@ -24,7 +24,7 @@
   (screens render in a cross-origin frame). TODO: export each screen as PNG (+HTML) into `docs/ui/`
   (`01-help-center.png` … `07-settings.png`, chat states `02a`–`02d`). Until then the UI follows
   `docs/ui/STITCH_PROMPT.md` with NeoUI defaults.
-- **Gemini API key** needed from M3 on for live runs (`Ai__Gemini__ApiKey` in `.env` / user-secrets). Tests don't need it.
+- **Gemini API key** needed for live chat and for `make eval` numbers (`Ai__Gemini__ApiKey` in `.env`). All automated tests run without it. Without a key the app starts, indexes documents for keyword search only, and the chat explains that the assistant isn't configured.
 - **No git remote yet:** milestones are merged locally with `--no-ff`. Add a GitHub remote to get CI, CodeQL and Dependabot running.
 - **Local toolchain:** the .NET SDK and `make` are not installed on the dev machine; everything runs in the
   `docker/dev.Dockerfile` toolbox via `scripts/dev.ps1` / `scripts/dev.sh` (see "How to verify").
@@ -57,3 +57,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 - 2026-11-27 – Claude Code – M4: agent + tools (Brightline.Agent), ChatService streaming/approvals, conversation audit store; unit + integration tests with scripted model and fake legacy API.
 - 2026-11-27 – Claude Code – M5: Help Center home/articles, ChatPanel (streaming, citations, approvals, errors), safe Markdown, keyword-only indexing without a key, bUnit tests; verified in the browser against docker compose.
 - 2026-11-27 – Claude Code – M6: admin console pages (AdminService read models), role checks (staff read, admin change), integration tests for every page; verified in the browser.
+- 2026-11-27 – Claude Code – M7: tests/Brightline.Eval harness (quality evaluators, 25 scenarios, metrics, report), eval/README.md; flaky-test fixes (DB timeouts, ranking tie). Real numbers pending a Gemini key.

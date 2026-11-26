@@ -96,6 +96,13 @@ public sealed class FakeLegacyOrdersClient : ILegacyOrdersClient
         return Task.FromResult(new CreateReturnResult(created, true));
     }
 
+    public Task<IReadOnlyList<ReturnInfo>> ListReturnsAsync(int customerId, CancellationToken ct = default)
+    {
+        ThrowIfDown();
+        IReadOnlyList<ReturnInfo> list = [.. Returns.Where(r => r.CustomerId == customerId).Select(r => r.Created)];
+        return Task.FromResult(list);
+    }
+
     private OrderDetail WithReturns(OrderDetail order)
     {
         var returns = Returns.Where(r => r.Request.OrderNumber == order.Number).Select(r => r.Created).ToList();

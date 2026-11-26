@@ -155,6 +155,16 @@ public static partial class CitationProcessor
         return (DoubleSpaceRegex().Replace(cleaned, " ").Replace(" .", ".", StringComparison.Ordinal), used.OrderBy(c => c.Number).ToList());
     }
 
+    /// <summary>Citation numbers in the raw answer, and how many map to a source retrieved this turn (eval: citation validity).</summary>
+    public static (int Total, int Valid) Count(string text, IReadOnlyList<Citation> available)
+    {
+        var numbers = MarkerRegex().Matches(text)
+            .SelectMany(m => m.Groups[1].Value.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            .Select(n => int.TryParse(n, out var v) ? v : -1)
+            .ToList();
+        return (numbers.Count, numbers.Count(n => available.Any(c => c.Number == n)));
+    }
+
     [GeneratedRegex(@"\[(\d+(?:\s*,\s*\d+)*)\]")]
     private static partial Regex MarkerRegex();
 
