@@ -1,0 +1,143 @@
+@page "/admin/tickets"
+@attribute [Authorize(Policy = "staff")]
+@layout AdminLayout
+@inherits AdminPageBase
+@using Brightline.Web.Admin
+@inject AdminService Admin
+@inject IToastService Toasts
+
+<PageTitle>Tickets · Brightline Admin</PageTitle>
+
+<div class="row-between">
+    <h1 class="page-title">Tickets</h1>
+    <div class="row">
+        <label for="ticket-filter" class="small muted">Status</label>
+        <select id="ticket-filter" class="native-select" @onchange="FilterAsync">
+            <option value="">All</option>
+            <option value="Open">Open</option>
+            <option value="InProgress">In progress</option>
+            <option value="Resolved">Resolved</option>
+        </select>
+    </div>
+</div>
+
+<Card>
+    <CardContent Class="pt-sm">
+        @if (_tickets is null)
+        {
+            <Skeleton Class="w-full" />
+        }
+        else if (_tickets.Count == 0)
+        {
+            <p class="muted small" style="padding:16px 0">No tickets yet.</p>
+        }
+        else
+        {
+            <table class="table" data-testid="ticket-table">
+                <thead>
+                    <tr><th>Ticket</th><th>Subject</th><th>Customer</th><th>Category</th><th>Priority</th><th>Status</th><th>Created</th><th>Conversation</th></tr>
+                </thead>
+                <tbody>
+                    @foreach (var t in _tickets)
+                    {
+                        <tr class="clickable @(t.Id == _selected?.Id ? "selected" : null)" @onclick="() => Open(t)">
+                            <td><strong>@t.Number</strong></td>
+                            <td>@t.Subject</td>
+                            <td class="small">@(t.CustomerLabel ?? "Unverified")</td>
+                            <td class="small">@t.Category</td>
+                            <td><Badge Variant="PriorityVariant(t.Priority)">@t.Priority</Badge></td>
+                            <td><Badge Variant="StatusVariant(t.Status)">@StatusLabel(t.Status)</Badge></td>
+                            <td class="small muted">@Ago(t.CreatedAt)</td>
+                            <td>@if (t.ConversationId is { } cid) { <a class="small" href="/admin/conversations/@cid" @onclick:stopPropagation="true">View</a> }</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </CardContent>
+</Card>
+
+<Sheet Open="_selected is not null" OpenChanged="open => { if (!open) _selected = null; }">
+    <SheetContent>
+        @if (_selected is { } t)
+        {
+            <div class="drawer-body" data-testid="ticket-drawer">
+                <div class="row-between"><h2 style="font-size:18px;font-weight:700">@t.Number</h2><Badge Variant="PriorityVariant(t.Priority)">@t.Priority</Badge></div>
+                <p><strong>@t.Subject</strong></p>
+                <div class="stack-sm">
+                    <span class="xs muted">AI-written summary</span>
+                    <p class="small" style="white-space:pre-wrap">@t.Summary</p>
+                </div>
+                <dl class="kv">
+                    <dt>Customer</dt><dd>@(t.CustomerLabel ?? "Unverified")</dd>
+                    <dt>Category</dt><dd>@t.Category</dd>
+                    <dt>Linked order</dt><dd>@(t.OrderNumber ?? "–")</dd>
+                    <dt>Linked return</dt><dd>@(t.ReturnNumber ?? "–")</dd>
+                    <dt>Created</dt><dd>@t.CreatedAt.ToString("MMM d, yyyy HH:mm", Us) UTC</dd>
+                </dl>
+                <div class="stack-sm">
+                    <label for="ticket-status" class="small">Status</label>
+                    <select id="ticket-status" class="native-select" @bind="_status">
+                        <option value="@Brightline.Data.Entities.TicketStatus.Open">Open</option>
+                        <option value="@Brightline.Data.Entities.TicketStatus.InProgress">In progress</option>
+                        <option value="@Brightline.Data.Entities.TicketStatus.Resolved">Resolved</option>
+                    </select>
+                </div>
+                <div class="stack-sm">
+                    <label for="ticket-notes" class="small">Internal notes</label>
+                    <textarea id="ticket-notes" class="native-select" style="height:120px;padding:8px" maxlength="4000" @bind="_notes"></textarea>
+                </div>
+                <div class="row">
+                    <Button OnClick="SaveAsync" data-testid="ticket-save">Save</Button>
+                    @if (t.ConversationId is { } cid) { <LinkButton Href="@($"/admin/conversations/{cid}")" Variant="ButtonVariant.Outline">Open conversation</LinkButton> }
+                </div>
+            </div>
+        }
+    </SheetContent>
+</Sheet>
+
+@code {
+    private IReadOnlyList<Brightline.Data.Entities.Ticket>? _tickets;
+    private Brightline.Data.Entities.Ticket? _selected;
+    private Brightline.Data.Entities.TicketStatus _status;
+    private Brightline.Data.Entities.TicketStatus? _filter;
+    private string? _notes;
+
+    [SupplyParameterFromQuery(Name = "open")]
+    public int? OpenId { get; set; }
+
+    protected override async Task LoadAsync()
+    {
+        _tickets = await Admin.ListTicketsAsync(_filter);
+        if (OpenId is { } id && _tickets.FirstOrDefault(t => t.Id == id) is { } ticket)
+        {
+            Open(ticket);
+        }
+    }
+
+    private void Open(Brightline.Data.Entities.Ticket ticket)
+    {
+        _selected = ticket;
+        _status = ticket.Status;
+        _notes = ticket.InternalNotes;
+    }
+
+    private async Task FilterAsync(ChangeEventArgs e)
+    {
+        _filter = Enum.TryParse<Brightline.Data.Entities.TicketStatus>(e.Value?.ToString(), out var s) ? s : null;
+        _tickets = await Admin.ListTicketsAsync(_filter);
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_selected is null)
+        {
+            return;
+        }
+
+        await Admin.UpdateTicketAsync(_selected.Id, _status, _notes);
+        Toasts.Success($"{_selected.Number} updated");
+        _selected = null;
+        _tickets = await Admin.ListTicketsAsync(_filter);
+    }
+}

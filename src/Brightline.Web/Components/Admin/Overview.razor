@@ -1,8 +1,110 @@
 @page "/admin"
 @attribute [Authorize(Policy = "staff")]
 @layout AdminLayout
+@inherits AdminPageBase
+@using System.Globalization
+@using Brightline.Web.Admin
+@inject AdminService Admin
 
 <PageTitle>Overview · Brightline Admin</PageTitle>
 
-<h1 class="page-title">Overview</h1>
-<p class="muted">The admin console arrives in milestone M6.</p>
+<div class="row-between">
+    <h1 class="page-title">Overview</h1>
+    <span class="small muted">Today, UTC</span>
+</div>
+
+@if (_stats is null)
+{
+    <div class="stat-grid">@for (var i = 0; i < 4; i++) { <Skeleton Class="w-full" /> }</div>
+}
+else
+{
+    <div class="stat-grid" data-testid="stats">
+        <Card><CardHeader><CardDescription>Conversations today</CardDescription><CardTitle><span class="stat-value">@_stats.ConversationsToday</span></CardTitle></CardHeader></Card>
+        <Card><CardHeader><CardDescription>Resolved without a human</CardDescription><CardTitle><span class="stat-value">@_stats.ResolvedWithoutHumanPercent.ToString("0", Us)%</span></CardTitle></CardHeader></Card>
+        <Card><CardHeader><CardDescription>Tickets created</CardDescription><CardTitle><span class="stat-value">@_stats.TicketsToday</span></CardTitle></CardHeader></Card>
+        <Card><CardHeader><CardDescription>Avg first response</CardDescription><CardTitle><span class="stat-value">@_stats.AvgFirstResponseSeconds.ToString("0.0", Us) s</span></CardTitle></CardHeader></Card>
+    </div>
+
+    <Card>
+        <CardHeader><CardTitle>Conversations per day</CardTitle><CardDescription>Last 14 days (test chats excluded)</CardDescription></CardHeader>
+        <CardContent>
+            <svg class="chart" viewBox="0 0 700 220" preserveAspectRatio="none" role="img" aria-label="Line chart of conversations per day">
+                @{
+                    var max = Math.Max(4, _stats.PerDay.Max(d => d.Count));
+                    var step = 640.0 / Math.Max(1, _stats.PerDay.Count - 1);
+                    string X(int i) => (40 + (i * step)).ToString("0.#", CultureInfo.InvariantCulture);
+                    string Y(int v) => (190 - (v * 170.0 / max)).ToString("0.#", CultureInfo.InvariantCulture);
+                    var points = string.Join(" ", _stats.PerDay.Select((d, i) => $"{X(i)},{Y(d.Count)}"));
+                }
+                @for (var g = 0; g <= 4; g++)
+                {
+                    var gy = (190 - (g * 170.0 / 4)).ToString("0.#", CultureInfo.InvariantCulture);
+                    <line class="grid" x1="40" x2="680" y1="@gy" y2="@gy" />
+                    @((MarkupString)$"<text x='30' y='{gy}' text-anchor='end' dominant-baseline='middle'>{(max * g / 4.0).ToString("0", Us)}</text>")
+                }
+                <polygon class="area" points="@($"40,190 {points} {X(_stats.PerDay.Count - 1)},190")" />
+                <polyline class="line" points="@points" />
+                @for (var i = 0; i < _stats.PerDay.Count; i += 2)
+                {
+                    @((MarkupString)$"<text x='{X(i)}' y='210' text-anchor='middle'>{_stats.PerDay[i].Day.ToString("MMM d", Us)}</text>")
+                }
+            </svg>
+        </CardContent>
+    </Card>
+
+    <div class="two-col">
+        <Card>
+            <CardHeader><CardTitle>Recent actions by the agent</CardTitle></CardHeader>
+            <CardContent>
+                @if (_stats.RecentActions.Count == 0)
+                {
+                    <p class="muted small">No actions yet. Try “Test as customer”.</p>
+                }
+                else
+                {
+                    <table class="table" data-testid="recent-actions">
+                        <thead><tr><th>Time</th><th>Customer</th><th>Action</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach (var a in _stats.RecentActions)
+                            {
+                                <tr class="clickable" @onclick="@(() => Nav.NavigateTo($"/admin/conversations/{a.ConversationId}"))">
+                                    <td class="small muted">@Ago(a.At)</td>
+                                    <td class="small">@a.Customer</td>
+                                    <td>@a.Action</td>
+                                    <td><Badge Variant="@(a.Status == "ok" || a.Status == "approved" ? BadgeVariant.SuccessSoft : a.Status is "cancelled" or "blocked" ? BadgeVariant.Muted : BadgeVariant.WarningSoft)">@(a.Status == "ok" ? "Done" : a.Status.Replace('_', ' '))</Badge></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </CardContent>
+        </Card>
+        <Card>
+            <CardHeader><CardTitle>Needs attention</CardTitle><CardDescription>Open high-priority and escalated tickets</CardDescription></CardHeader>
+            <CardContent Class="stack-sm">
+                @if (_stats.NeedsAttention.Count == 0)
+                {
+                    <p class="muted small">Nothing urgent. 🎉</p>
+                }
+                @foreach (var t in _stats.NeedsAttention)
+                {
+                    <a class="list-item" href="/admin/tickets?open=@t.Id">
+                        <span class="row-between"><strong>@t.Number</strong><Badge Variant="PriorityVariant(t.Priority)">@t.Priority</Badge></span>
+                        <span class="small">@t.Subject</span>
+                        <span class="xs muted">@(t.CustomerLabel ?? "Unverified") · @Ago(t.CreatedAt)</span>
+                    </a>
+                }
+            </CardContent>
+        </Card>
+    </div>
+}
+
+@code {
+    private OverviewStats? _stats;
+
+    [Inject]
+    private NavigationManager Nav { get; set; } = default!;
+
+    protected override async Task LoadAsync() => _stats = await Admin.GetOverviewAsync();
+}

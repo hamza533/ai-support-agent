@@ -1,0 +1,211 @@
+@page "/admin/settings"
+@attribute [Authorize(Policy = "staff")]
+@layout AdminLayout
+@inherits AdminPageBase
+@using System.Globalization
+@using Brightline.Agent
+@using Brightline.Ai
+@using Brightline.Web.Infrastructure
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.Options
+@inject IServiceScopeFactory Scopes
+@inject IOptions<AiOptions> Ai
+@inject IOptions<EntraIdOptions> Entra
+@inject IOptions<DemoOptions> Demo
+@inject IToastService Toasts
+
+<PageTitle>Settings · Brightline Admin</PageTitle>
+
+<div class="row-between">
+    <h1 class="page-title">Settings</h1>
+    @if (IsAdmin)
+    {
+        <Button OnClick="SaveAsync" Disabled="_settings is null" data-testid="settings-save">Save</Button>
+    }
+    else
+    {
+        <Badge Variant="BadgeVariant.Muted">Read-only (admin role required)</Badge>
+    }
+</div>
+
+@if (_settings is null)
+{
+    <Skeleton Class="w-full" />
+}
+else
+{
+    <Tabs DefaultValue="agent">
+        <TabsList>
+            <TabsTrigger Value="agent">Agent</TabsTrigger>
+            <TabsTrigger Value="policies">Policies</TabsTrigger>
+            <TabsTrigger Value="approvals">Approvals</TabsTrigger>
+            <TabsTrigger Value="access">Access</TabsTrigger>
+        </TabsList>
+
+        <TabsContent Value="agent">
+            <Card>
+                <CardContent Class="stack pt-lg">
+                    <div class="stack-sm">
+                        <label for="system-prompt" class="small">System prompt</label>
+                        <textarea id="system-prompt" class="native-select code" style="height:320px;padding:10px" @bind="_prompt" disabled="@(!IsAdmin)"></textarea>
+                        <span class="xs muted">Keep the security section: it tells the model to treat retrieved text as data.</span>
+                    </div>
+                    <div class="form-grid">
+                        <div class="stack-sm">
+                            <span class="small">Model</span>
+                            <div class="native-select" style="display:flex;align-items:center">@ModelLabel</div>
+                            <span class="xs muted">Gemini Flash (dev) / Azure OpenAI (prod) — switched by the <code>Ai__Provider</code> setting, no code change.</span>
+                        </div>
+                        <div class="stack-sm">
+                            <label for="temperature" class="small">Temperature (@_temperature.ToString("0.0", CultureInfo.InvariantCulture))</label>
+                            <input id="temperature" type="range" min="0" max="1" step="0.1" @bind="_temperature" @bind:event="oninput" disabled="@(!IsAdmin)" />
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent Value="policies">
+            <Card>
+                <CardContent Class="form-grid pt-lg">
+                    <div class="stack-sm">
+                        <label for="window" class="small">Return window (days)</label>
+                        <input id="window" class="native-select" type="number" min="1" max="365" @bind="_windowDays" disabled="@(!IsAdmin)" />
+                    </div>
+                    <div class="stack-sm">
+                        <label for="max-items" class="small">Max items per return</label>
+                        <input id="max-items" class="native-select" type="number" min="1" max="20" @bind="_maxItems" disabled="@(!IsAdmin)" />
+                    </div>
+                    <div class="stack-sm" style="grid-column:1/-1">
+                        <label for="categories" class="small">Eligible categories (comma-separated)</label>
+                        <input id="categories" class="native-select" @bind="_categories" disabled="@(!IsAdmin)" />
+                        <span class="xs muted">Software and Gift Cards are never returnable.</span>
+                    </div>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent Value="approvals">
+            <Card>
+                <CardContent Class="stack pt-lg">
+                    <div class="row-between"><span>Require confirmation for return requests</span><Switch Checked="true" Disabled="true" AriaLabel="Require confirmation for return requests (locked on)" /></div>
+                    <div class="row-between"><span>Require confirmation for support tickets</span><Switch Checked="true" Disabled="true" AriaLabel="Require confirmation for support tickets (locked on)" /></div>
+                    <Alert Variant="AlertVariant.Info"><AlertDescription>Required for actions that change data. These can't be turned off.</AlertDescription></Alert>
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent Value="access">
+            <Card>
+                <CardContent Class="stack pt-lg">
+                    <div class="row-between">
+                        <span>Sign in with Microsoft Entra ID <Badge Variant="BadgeVariant.Outline">Production</Badge></span>
+                        <Switch Checked="Entra.Value.Enabled" Disabled="true" AriaLabel="Entra ID sign-in (set by configuration)" />
+                    </div>
+                    <span class="xs muted">Enabled with <code>Auth__EntraId__Enabled</code>, tenant and client id. Entra users sign in to the matching staff account.</span>
+                    <table class="table" data-testid="staff-table">
+                        <thead><tr><th>Email</th><th>Role</th></tr></thead>
+                        <tbody>
+                            @foreach (var u in _users)
+                            {
+                                <tr><td>@u.Email</td><td><Badge Variant="@(u.Role == "admin" ? BadgeVariant.Default : BadgeVariant.Secondary)">@(u.Role == "admin" ? "Admin" : "Staff")</Badge></td></tr>
+                            }
+                        </tbody>
+                    </table>
+                    @if (IsAdmin && !Demo.Value.Enabled)
+                    {
+                        <form class="row wrap" @onsubmit="AddUserAsync" @onsubmit:preventDefault>
+                            <label for="new-user" class="sr-only">New staff email</label>
+                            <input id="new-user" class="native-select grow" type="email" placeholder="new.staff@brightline.example" @bind="_newEmail" required />
+                            <select class="native-select" @bind="_newRole" aria-label="Role"><option value="staff">Staff</option><option value="admin">Admin</option></select>
+                            <Button Type="ButtonType.Submit" Variant="ButtonVariant.Outline">Add user</Button>
+                        </form>
+                        @if (_generatedPassword is not null)
+                        {
+                            <Alert Variant="AlertVariant.Warning"><AlertDescription>Temporary password for @_lastCreated: <code>@_generatedPassword</code> — shown once. Share it securely.</AlertDescription></Alert>
+                        }
+                    }
+                </CardContent>
+            </Card>
+        </TabsContent>
+    </Tabs>
+}
+
+@code {
+    private AgentSettings? _settings;
+    private string _prompt = string.Empty;
+    private float _temperature;
+    private int _windowDays;
+    private int _maxItems;
+    private string _categories = string.Empty;
+    private List<(string Email, string Role)> _users = [];
+    private string _newEmail = string.Empty;
+    private string _newRole = "staff";
+    private string? _generatedPassword;
+    private string? _lastCreated;
+
+    private string ModelLabel => Ai.Value.Provider switch
+    {
+        AiProviders.GeminiOpenAiCompat => $"Gemini · {Ai.Value.ChatModel} (dev)",
+        AiProviders.AzureOpenAi => $"Azure OpenAI · {Ai.Value.ChatModel} (prod)",
+        _ => $"{Ai.Value.Provider} · {Ai.Value.ChatModel}",
+    };
+
+    protected override async Task LoadAsync()
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        _settings = await scope.ServiceProvider.GetRequiredService<AgentSettingsService>().GetAsync();
+        _prompt = _settings.SystemPrompt;
+        _temperature = _settings.Temperature;
+        _windowDays = _settings.ReturnWindowDays;
+        _maxItems = _settings.MaxItemsPerReturn;
+        _categories = string.Join(", ", _settings.EligibleCategories);
+        await LoadUsersAsync();
+    }
+
+    private async Task LoadUsersAsync()
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        var users = scope.ServiceProvider.GetRequiredService<UserManager<AppUser>>();
+        var admins = (await users.GetUsersInRoleAsync(Roles.Admin)).Select(u => (u.Email ?? u.UserName ?? "?", "admin"));
+        var staff = (await users.GetUsersInRoleAsync(Roles.Staff)).Select(u => (u.Email ?? u.UserName ?? "?", "staff"));
+        _users = [.. admins.Concat(staff).DistinctBy(u => u.Item1).OrderBy(u => u.Item1)];
+    }
+
+    private async Task SaveAsync()
+    {
+        if (!IsAdmin || _settings is null)
+        {
+            return; // enforced here, not just by hiding the button
+        }
+
+        var updated = _settings with
+        {
+            SystemPrompt = string.IsNullOrWhiteSpace(_prompt) ? Prompts.DefaultSystemPrompt : _prompt,
+            Temperature = Math.Clamp(_temperature, 0f, 1f),
+            ReturnWindowDays = Math.Clamp(_windowDays, 1, 365),
+            MaxItemsPerReturn = Math.Clamp(_maxItems, 1, 20),
+            EligibleCategories = [.. _categories.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)],
+        };
+        await using var scope = Scopes.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<AgentSettingsService>().SaveAsync(updated, UserName);
+        _settings = updated;
+        Toasts.Success("Settings saved", "New conversations use the updated settings.");
+    }
+
+    private async Task AddUserAsync()
+    {
+        if (!IsAdmin || Demo.Value.Enabled || string.IsNullOrWhiteSpace(_newEmail))
+        {
+            return;
+        }
+
+        await using var scope = Scopes.CreateAsyncScope();
+        _generatedPassword = await scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>()
+            .CreateUserAsync(_newEmail.Trim(), _newRole == "admin" ? Roles.Admin : Roles.Staff, null);
+        _lastCreated = _newEmail.Trim();
+        _newEmail = string.Empty;
+        await LoadUsersAsync();
+    }
+}
