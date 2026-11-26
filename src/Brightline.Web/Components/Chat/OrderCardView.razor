@@ -1,0 +1,36 @@
+@using System.Globalization
+@using Brightline.LegacyOrders.Client
+
+<div class="order-card" data-testid="order-card">
+    <div class="row-between">
+        <strong>Order @Order.Number</strong>
+        <Badge Variant="@(Order.IsDelivered ? BadgeVariant.SuccessSoft : BadgeVariant.InfoSoft)">@Order.Status</Badge>
+    </div>
+    @foreach (var line in Order.Lines)
+    {
+        <div class="order-line">
+            <span>@line.Quantity × @line.Name</span>
+            <span class="muted">@line.UnitPrice.ToString("C0", Us)</span>
+        </div>
+    }
+    @if (Order.Delivery is { } d)
+    {
+        <div class="small muted">
+            @if (d.DeliveredAt is { } delivered)
+            {
+                <span>Delivered @delivered.ToString("MMM d, yyyy", Us) · @d.Carrier</span>
+            }
+            else
+            {
+                <span>Expected @(d.EstimatedDelivery?.ToString("MMM d, yyyy", Us) ?? "soon") · @d.Carrier @d.TrackingNumber</span>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    private static readonly CultureInfo Us = CultureInfo.GetCultureInfo("en-US");
+
+    [Parameter, EditorRequired]
+    public OrderDetail Order { get; set; } = default!;
+}

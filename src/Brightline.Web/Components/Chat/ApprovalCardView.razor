@@ -1,0 +1,60 @@
+@using Brightline.Agent
+
+<div class="action-card" role="group" aria-label="@Card.Title" data-testid="approval-card">
+    <div class="row">
+        <LucideIcon Name="@(Card.Allowed ? "shield-check" : "shield-alert")" Size="18" Class="@(Card.Allowed ? "text-success" : "text-danger")" />
+        <h4>@Card.Title</h4>
+    </div>
+    @if (Card.Allowed)
+    {
+        <ul>
+            @foreach (var line in Card.Lines)
+            {
+                <li>@line</li>
+            }
+        </ul>
+    }
+    else
+    {
+        <p class="small">@Card.BlockedReason</p>
+    }
+
+    @switch (State)
+    {
+        case ApprovalViewState.Pending:
+            <div class="row">
+                @if (Card.Allowed)
+                {
+                    <Button OnClick="() => OnDecision.InvokeAsync(true)" Disabled="Busy" data-testid="approval-confirm">Confirm</Button>
+                }
+                <Button Variant="ButtonVariant.Outline" OnClick="() => OnDecision.InvokeAsync(false)" Disabled="Busy" data-testid="approval-cancel">
+                    @(Card.Allowed ? "Cancel" : "OK")
+                </Button>
+            </div>
+            @if (Card.Allowed)
+            {
+                <p class="note">@Card.Note</p>
+            }
+            break;
+        case ApprovalViewState.Confirmed:
+            <Badge Variant="BadgeVariant.SuccessSoft">Confirmed</Badge>
+            break;
+        default:
+            <Badge Variant="BadgeVariant.Muted">Cancelled — nothing was changed</Badge>
+            break;
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public ApprovalCard Card { get; set; } = default!;
+
+    [Parameter]
+    public ApprovalViewState State { get; set; }
+
+    [Parameter]
+    public bool Busy { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnDecision { get; set; }
+}

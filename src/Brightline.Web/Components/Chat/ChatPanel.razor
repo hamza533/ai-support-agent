@@ -1,0 +1,402 @@
+@using System.Diagnostics
+@using Brightline.Agent
+@using Brightline.Web.Infrastructure
+@using Brightline.Web.Rendering
+@implements IAsyncDisposable
+@inject IServiceProvider Services
+@inject ChatRateLimiter RateLimiter
+@inject IToastService Toasts
+@inject IJSRuntime JS
+@inject ILogger<ChatPanel> Logger
+
+<section class="chat-panel @(Embedded ? "embedded" : null)" aria-label="Brightline Assistant chat" data-testid="chat-panel">
+    <header class="chat-header">
+        <span class="avatar-bot" aria-hidden="true">B</span>
+        <div class="grow">
+            <div class="title">Brightline Assistant</div>
+            <div class="xs muted">@(IsTest ? "Test as customer · not counted" : "Answers from our help centre · asks before changing anything")</div>
+        </div>
+        @if (_chat?.Session.IsVerified == true)
+        {
+            <span class="verified-chip" data-testid="verified-chip"><LucideIcon Name="badge-check" Size="14" /> Verified</span>
+        }
+        <Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSmall" AriaLabel="Start a new chat" OnClick="NewChatAsync" Disabled="_busy">
+            <LucideIcon Name="rotate-ccw" Size="16" />
+        </Button>
+        @if (OnClose.HasDelegate)
+        {
+            <Button Variant="ButtonVariant.Ghost" Size="ButtonSize.IconSmall" AriaLabel="Close chat" OnClick="() => OnClose.InvokeAsync()">
+                <LucideIcon Name="x" Size="16" />
+            </Button>
+        }
+    </header>
+
+    <div class="chat-body" @ref="_body" aria-live="polite" data-testid="chat-body">
+        @if (_items.Count == 0)
+        {
+            <div class="msg assistant">
+                <span class="avatar-bot" aria-hidden="true">B</span>
+                <div class="bubble">Hi! I'm Brightline Assistant. Ask me about returns, delivery, warranty or your order.</div>
+            </div>
+            <div class="suggestions">
+                @foreach (var s in Suggestions)
+                {
+                    <button type="button" @onclick="() => SendAsync(s)" disabled="@_busy">@s</button>
+                }
+            </div>
+        }
+
+        @foreach (var item in _items)
+        {
+            switch (item)
+            {
+                case UserItem u:
+                    <div class="msg user" @key="u.Key"><div class="bubble">@u.Text</div></div>
+                    break;
+                case AssistantItem a:
+                    <div class="msg assistant" @key="a.Key" data-testid="assistant-message">
+                        <span class="avatar-bot" aria-hidden="true">B</span>
+                        <div class="grow">
+                            @if (a.Streaming)
+                            {
+                                <div class="bubble">@a.Text</div>
+                            }
+                            else
+                            {
+                                <div class="bubble">@SafeMarkdown.Render(a.Text, a.Citations)</div>
+                            }
+                            @if (!a.Streaming && a.Citations.Count > 0)
+                            {
+                                <div class="sources" data-testid="sources">
+                                    @foreach (var c in a.Citations)
+                                    {
+                                        <a class="source-card" href="@c.Uri" target="_blank" rel="noopener">
+                                            <span class="cite">@c.Number</span>
+                                            <span class="grow truncate">@c.Title@(string.IsNullOrEmpty(c.HeadingPath) ? null : $" · {c.HeadingPath}")</span>
+                                            <LucideIcon Name="external-link" Size="12" />
+                                        </a>
+                                    }
+                                </div>
+                            }
+                            @if (a.Steps.Count > 0 && !a.Streaming)
+                            {
+                                <Collapsible>
+                                    <CollapsibleTrigger Class="xs muted">What I did (@a.Steps.Count)</CollapsibleTrigger>
+                                    <CollapsibleContent>
+                                        <ul class="steps" data-testid="steps">
+                                            @foreach (var step in a.Steps)
+                                            {
+                                                <li>
+                                                    <LucideIcon Name="@(step.Status == "succeeded" ? "check" : step.Status == "failed" ? "circle-alert" : "loader")" Size="14"
+                                                                Class="@(step.Status == "succeeded" ? "text-success" : step.Status == "failed" ? "text-warning" : null)" />
+                                                    @step.Label
+                                                </li>
+                                            }
+                                        </ul>
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            }
+                            @if (!a.Streaming && a.OfferTicket && ReferenceEquals(a, LastAssistant))
+                            {
+                                <div class="suggestions" style="margin-top:8px">
+                                    <button type="button" @onclick="@(() => SendAsync("Yes, please create a support ticket."))" disabled="@_busy" data-testid="offer-ticket">Create a support ticket</button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                    break;
+                case OrderItem o:
+                    <div @key="o.Key"><OrderCardView Order="o.Order" /></div>
+                    break;
+                case ApprovalItem p:
+                    <div @key="p.Key"><ApprovalCardView Card="p.Card" State="p.State" Busy="_busy" OnDecision="approved => DecideAsync(p, approved)" /></div>
+                    break;
+                case ActionItem done:
+                    <div @key="done.Key" data-testid="action-completed">
+                        <Alert Variant="AlertVariant.Success">
+                            <AlertTitle>@(done.Action.Kind switch { "return" => "Return created", "ticket" => "Ticket created", _ => "Escalated" }) · @done.Action.Reference</AlertTitle>
+                            <AlertDescription>@done.Action.Message</AlertDescription>
+                        </Alert>
+                    </div>
+                    break;
+                case ErrorItem e:
+                    <div @key="e.Key" data-testid="chat-error">
+                        <Alert Variant="@(e.Error.Kind == ChatErrorKinds.RateLimited ? AlertVariant.Warning : AlertVariant.Destructive)">
+                            <AlertDescription>@e.Error.Message</AlertDescription>
+                        </Alert>
+                    </div>
+                    break;
+            }
+        }
+
+        @if (_busy && (_current is null || _current.Text.Length == 0))
+        {
+            <div class="msg assistant" aria-label="Assistant is typing">
+                <span class="avatar-bot" aria-hidden="true">B</span>
+                <div class="bubble typing"><span></span><span></span><span></span></div>
+            </div>
+        }
+    </div>
+
+    <footer class="chat-footer">
+        <form class="chat-input" @onsubmit="SubmitAsync" @onsubmit:preventDefault>
+            <label for="chat-input-@_id" class="sr-only">Message</label>
+            <textarea id="chat-input-@_id" class="native-select grow" rows="1" placeholder="Ask a question or describe your issue…"
+                      maxlength="@ChatService.MaxMessageLength" @bind="_draft" @bind:event="oninput" @onkeydown="OnKeyDownAsync"
+                      disabled="@(_busy || _awaitingApproval)" data-testid="chat-input"></textarea>
+            <Button Type="ButtonType.Submit" Size="ButtonSize.Icon" AriaLabel="Send" Disabled="@(_busy || _awaitingApproval || string.IsNullOrWhiteSpace(_draft))" data-testid="chat-send">
+                <LucideIcon Name="send" Size="16" />
+            </Button>
+        </form>
+        <p class="xs muted">@(_awaitingApproval ? "Confirm or cancel the action above to continue." : "Never share passwords or card numbers in chat.")</p>
+    </footer>
+</section>
+
+@code {
+    private static readonly string[] Suggestions =
+    [
+        "Can I return headphones if one side stopped working?",
+        "Where is my order?",
+        "How long do refunds take?",
+    ];
+
+    private readonly List<ChatItem> _items = [];
+    private readonly string _id = Guid.NewGuid().ToString("N")[..8];
+    private ChatService? _chat;
+    private AssistantItem? _current;
+    private ElementReference _body;
+    private string _draft = string.Empty;
+    private bool _busy;
+    private bool _awaitingApproval;
+    private bool _scroll;
+    private CancellationTokenSource _cts = new();
+
+    [Parameter]
+    public bool Embedded { get; set; }
+
+    [Parameter]
+    public bool IsTest { get; set; }
+
+    [Parameter]
+    public string? InitialQuestion { get; set; }
+
+    [Parameter]
+    public EventCallback OnClose { get; set; }
+
+    /// <summary>Client IP (from the first HTTP request), used to partition the chat rate limit.</summary>
+    [CascadingParameter(Name = "ClientKey")]
+    public string? ClientKey { get; set; }
+
+    /// <summary>Optional factory (tests); by default a new ChatService per conversation from the circuit's services.</summary>
+    [Parameter]
+    public Func<ChatService>? ChatFactory { get; set; }
+
+    private AssistantItem? LastAssistant => _items.OfType<AssistantItem>().LastOrDefault();
+
+    protected override void OnInitialized() => StartConversation();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !string.IsNullOrWhiteSpace(InitialQuestion))
+        {
+            await SendAsync(InitialQuestion);
+        }
+
+        if (_scroll)
+        {
+            _scroll = false;
+            try
+            {
+                await JS.InvokeVoidAsync("brightline.scrollToBottom", _body);
+            }
+            catch (JSException)
+            {
+                // scrolling is cosmetic
+            }
+            catch (InvalidOperationException)
+            {
+                // prerendering / tests without JS
+            }
+        }
+    }
+
+    private void StartConversation()
+    {
+        _chat = ChatFactory?.Invoke() ?? ActivatorUtilities.CreateInstance<ChatService>(Services);
+        _chat.Session.IsTest = IsTest;
+    }
+
+    private async Task NewChatAsync()
+    {
+        await _cts.CancelAsync();
+        _cts = new CancellationTokenSource();
+        _items.Clear();
+        _current = null;
+        _awaitingApproval = false;
+        StartConversation();
+    }
+
+    private Task SubmitAsync() => SendAsync(_draft);
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendAsync(_draft);
+        }
+    }
+
+    public async Task SendAsync(string text)
+    {
+        text = text.Trim();
+        if (text.Length == 0 || _busy || _awaitingApproval || _chat is null)
+        {
+            return;
+        }
+
+        var key = ClientKey ?? _chat.Session.ConversationId.ToString();
+        if (!IsTest && !RateLimiter.TryAcquireMessage(key))
+        {
+            _items.Add(new ErrorItem(new ChatError(ChatErrorKinds.RateLimited, "You're sending messages very quickly. Please wait a moment and try again.")));
+            return;
+        }
+
+        if (!IsTest && !_chat.Session.IsPersisted && !RateLimiter.TryAcquireConversation(key))
+        {
+            _items.Add(new ErrorItem(new ChatError(ChatErrorKinds.RateLimited, "Too many new chats from your network. Please try again later.")));
+            return;
+        }
+
+        _draft = string.Empty;
+        _items.Add(new UserItem(text));
+        await RunAsync(_chat.SendAsync(text, _cts.Token));
+    }
+
+    private async Task DecideAsync(ApprovalItem item, bool approved)
+    {
+        if (_busy || item.State != ApprovalViewState.Pending || _chat is null)
+        {
+            return;
+        }
+
+        item.State = approved && item.Card.Allowed ? ApprovalViewState.Confirmed : ApprovalViewState.Cancelled;
+        _awaitingApproval = _items.OfType<ApprovalItem>().Any(i => i.State == ApprovalViewState.Pending);
+        await RunAsync(_chat.RespondToApprovalAsync(item.Card.RequestId, approved, _cts.Token));
+    }
+
+    private async Task RunAsync(IAsyncEnumerable<ChatEvent> events)
+    {
+        _busy = true;
+        _current = null;
+        _scroll = true;
+        StateHasChanged();
+        var lastRender = Stopwatch.StartNew();
+        var steps = new List<StepView>();
+        try
+        {
+            await foreach (var e in events)
+            {
+                Apply(e, steps);
+                if (lastRender.ElapsedMilliseconds > 40 || e is not TextDelta)
+                {
+                    lastRender.Restart();
+                    _scroll = true;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // new chat started
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Chat UI turn failed");
+            _items.Add(new ErrorItem(new ChatError(ChatErrorKinds.Failed, "Something went wrong. Please try again.")));
+        }
+        finally
+        {
+            if (_current is not null)
+            {
+                _current.Streaming = false;
+                if (_current.Text.Length == 0)
+                {
+                    _items.Remove(_current);
+                }
+            }
+
+            // Steps of this turn belong to the last assistant message (create one if the turn only showed cards).
+            if (steps.Count > 0)
+            {
+                var host = _current is { Text.Length: > 0 } ? _current : LastAssistant;
+                host?.Steps.AddRange(steps.Where(s => !host.Steps.Contains(s)));
+            }
+
+            _awaitingApproval = _items.OfType<ApprovalItem>().Any(i => i.State == ApprovalViewState.Pending);
+            _busy = false;
+            _scroll = true;
+            StateHasChanged();
+        }
+    }
+
+    private void Apply(ChatEvent e, List<StepView> steps)
+    {
+        switch (e)
+        {
+            case TextDelta delta:
+                EnsureCurrent().Text += delta.Text;
+                break;
+            case ToolActivity activity:
+                var step = steps.FirstOrDefault(s => s.CallId == activity.CallId);
+                if (step is null)
+                {
+                    step = new StepView(activity.CallId, activity.Label);
+                    steps.Add(step);
+                }
+
+                step.Status = activity.Status;
+                break;
+            case OrderCard order:
+                _items.Add(new OrderItem(order.Order));
+                break;
+            case ApprovalCard card:
+                _items.Add(new ApprovalItem(card));
+                break;
+            case ActionCompleted action:
+                _items.Add(new ActionItem(action));
+                Toasts.Success(action.Kind == "return" ? $"Return {action.Reference} created" : $"Ticket {action.Reference} created", action.Message);
+                break;
+            case AssistantMessage message:
+                var current = EnsureCurrent();
+                current.Text = message.Text;
+                current.Citations = message.Citations;
+                current.OfferTicket = message.OfferTicket || message.Text.Contains("create a ticket", StringComparison.OrdinalIgnoreCase)
+                    || message.Text.Contains("create a support ticket", StringComparison.OrdinalIgnoreCase);
+                current.Streaming = false;
+                current.Steps.AddRange(steps);
+                steps.Clear();
+                _current = null; // text after this belongs to a new bubble
+                break;
+            case ChatError error:
+                _items.Add(new ErrorItem(error));
+                break;
+        }
+    }
+
+    private AssistantItem EnsureCurrent()
+    {
+        if (_current is null)
+        {
+            _current = new AssistantItem();
+            _items.Add(_current);
+        }
+
+        return _current;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        await _cts.CancelAsync();
+        _cts.Dispose();
+    }
+}

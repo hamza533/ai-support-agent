@@ -1,0 +1,77 @@
+@page "/help/{Id:guid}"
+@using System.Text
+@using Brightline.Data
+@using Brightline.Web.Components.Chat
+@using Brightline.Web.Rendering
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
+
+<PageTitle>@(_title ?? "Article") · Brightline Help Center</PageTitle>
+
+<SiteHeader OnOpenChat="() => _chatOpen = true" />
+
+<main class="site-main">
+    <nav class="small muted" aria-label="Breadcrumb" style="margin-bottom:16px"><a href="/">Help Center</a> / @_title</nav>
+    @if (_notFound)
+    {
+        <h1>Article not found</h1>
+        <p class="muted">It may have been removed. <a href="/">Back to the Help Center</a>.</p>
+    }
+    else if (_html is null)
+    {
+        <Skeleton Class="w-full" />
+    }
+    else
+    {
+        <article class="article-body" data-testid="article">
+            <h1 style="margin-bottom:16px">@_title</h1>
+            @_html
+        </article>
+    }
+</main>
+
+@if (_chatOpen)
+{
+    <ChatPanel OnClose="() => _chatOpen = false" />
+}
+else
+{
+    <div class="fab">
+        <Button OnClick="() => _chatOpen = true"><LucideIcon Name="message-circle" Size="18" /> Ask Brightline Assistant</Button>
+    </div>
+}
+
+@code {
+    private string? _title;
+    private MarkupString? _html;
+    private bool _notFound;
+    private bool _chatOpen;
+
+    [Parameter]
+    public Guid Id { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var source = await db.Sources.AsNoTracking().SingleOrDefaultAsync(s => s.Id == Id);
+        if (source is null)
+        {
+            _notFound = true;
+            return;
+        }
+
+        _title = source.Title;
+        if (source.Type == Brightline.Data.Entities.SourceType.Markdown)
+        {
+            var markdown = Encoding.UTF8.GetString(source.Content);
+            // The H1 is shown as the page title.
+            var lines = markdown.Split('\n').SkipWhile(l => !l.StartsWith("# ", StringComparison.Ordinal)).Skip(1);
+            _html = SafeMarkdown.Render(markdown.TrimStart().StartsWith("# ", StringComparison.Ordinal) ? string.Join('\n', lines) : markdown);
+        }
+        else
+        {
+            var chunks = await db.Chunks.AsNoTracking().Where(c => c.SourceId == Id && c.IsActive).OrderBy(c => c.ChunkIndex).Select(c => c.Text).ToListAsync();
+            _html = SafeMarkdown.Render(string.Join("\n\n", chunks));
+        }
+    }
+}

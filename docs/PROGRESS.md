@@ -1,10 +1,10 @@
 # PROGRESS – handoff log
 
 ## Status
-- **Current milestone:** M5 – Customer chat UI
-- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding (79 tests green)
-- **In progress:** M5
-- **Next:** M6 – Admin console
+- **Current milestone:** M6 – Admin console
+- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding; M5 customer Help Center + streaming chat (citations, verified chip, order card, confirmation cards, What I did, ticket offer, order-system-down state, cold-start message) with bUnit tests (85 tests green)
+- **In progress:** M6
+- **Next:** M7 – Evaluation
 
 | # | Milestone | Status |
 |---|---|---|
@@ -13,8 +13,8 @@
 | M2 | Data, auth, foundation services | ✅ done |
 | M3 | AI provider + knowledge base | ✅ done |
 | M4 | Agent + tools | ✅ done |
-| M5 | Customer chat UI | in progress |
-| M6 | Admin console | – |
+| M5 | Customer chat UI | ✅ done |
+| M6 | Admin console | in progress |
 | M7 | Evaluation | – |
 | M8 | End-to-end + demo + production profile | – |
 | M9 | Final check | – |
@@ -55,3 +55,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 - 2026-11-26 – Claude Code – M2: app schema + migrations, Identity/Entra, Data Protection, job queue (SKIP LOCKED, backoff, dead-letter, lease recovery), retention, health/ready, rate limiting, CSP, OTel; integration tests.
 - 2026-11-27 – Claude Code – M3: Brightline.Ai provider registration (config switch test), Brightline.Knowledge ingestion + hybrid search, sample help-centre docs, shared test fakes.
 - 2026-11-27 – Claude Code – M4: agent + tools (Brightline.Agent), ChatService streaming/approvals, conversation audit store; unit + integration tests with scripted model and fake legacy API.
+- 2026-11-27 – Claude Code – M5: Help Center home/articles, ChatPanel (streaming, citations, approvals, errors), safe Markdown, keyword-only indexing without a key, bUnit tests; verified in the browser against docker compose.
