@@ -1,17 +1,17 @@
 # PROGRESS – handoff log
 
 ## Status
-- **Current milestone:** M2 – Data, auth, foundation services
-- **Done:** M0 – solution foundation; M1 – Legacy Orders API + typed client (16 tests green: 9 integration against real Postgres, 7 unit)
-- **In progress:** M2
-- **Next:** M3 – AI provider + knowledge base
+- **Current milestone:** M3 – AI provider + knowledge base
+- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry (27 tests green)
+- **In progress:** M3
+- **Next:** M4 – Agent + tools
 
 | # | Milestone | Status |
 |---|---|---|
 | M0 | Solution foundation | ✅ done |
 | M1 | Legacy Orders API | ✅ done |
-| M2 | Data, auth, foundation services | in progress |
-| M3 | AI provider + knowledge base | – |
+| M2 | Data, auth, foundation services | ✅ done |
+| M3 | AI provider + knowledge base | in progress |
 | M4 | Agent + tools | – |
 | M5 | Customer chat UI | – |
 | M6 | Admin console | – |
@@ -52,3 +52,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 ## Session log
 - 2026-11-26 – Claude Code – plan, architecture.md, package/licence research, M0 scaffold.
 - 2026-11-26 – Claude Code – M1: legacy Orders & Returns API (EF migrations, deterministic seed, API key, OpenAPI/Scalar, idempotent returns, reset) and typed client with standard resilience; Testcontainers integration tests.
+- 2026-11-26 – Claude Code – M2: app schema + migrations, Identity/Entra, Data Protection, job queue (SKIP LOCKED, backoff, dead-letter, lease recovery), retention, health/ready, rate limiting, CSP, OTel; integration tests.

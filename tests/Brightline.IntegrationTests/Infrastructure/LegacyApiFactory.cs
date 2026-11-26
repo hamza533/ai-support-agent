@@ -1,3 +1,5 @@
+extern alias legacy;
+
 using Brightline.LegacyOrders.Client;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -7,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Brightline.IntegrationTests.Infrastructure;
 
 /// <summary>Runs the legacy Orders API in-memory against a real Postgres database (migrated + seeded on start).</summary>
-public sealed class LegacyApiFactory(string connectionString) : WebApplicationFactory<Brightline.LegacyOrders.Program>
+public sealed class LegacyApiFactory(string connectionString) : WebApplicationFactory<legacy::Brightline.LegacyOrders.Program>
 {
     public const string ApiKey = "test-api-key";
     public const string AdminKey = "test-admin-key";

@@ -39,6 +39,7 @@
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" Version="10.0.15" />
     <PackageVersion Include="NeoUI.Blazor" Version="4.5.5" />
+    <PackageVersion Include="NeoUI.Icons.Lucide" Version="3.1.0" />
   </ItemGroup>
   <ItemGroup Label="Documents">
     <PackageVersion Include="PdfPig" Version="0.1.16" />

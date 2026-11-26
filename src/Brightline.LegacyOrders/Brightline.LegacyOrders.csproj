@@ -13,7 +13,4 @@
     <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
     <PackageReference Include="Npgsql.OpenTelemetry" />
   </ItemGroup>
-  <ItemGroup>
-    <InternalsVisibleTo Include="Brightline.IntegrationTests" />
-  </ItemGroup>
 </Project>

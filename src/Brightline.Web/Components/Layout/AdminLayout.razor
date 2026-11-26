@@ -1,0 +1,52 @@
+@inherits LayoutComponentBase
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+
+<AppProvider>
+    <div class="admin-shell">
+        <nav class="admin-sidebar" aria-label="Admin">
+            <a class="brand" href="/admin"><span class="brand-mark"><LucideIcon Name="zap" Size="16" /></span> Brightline</a>
+            <NavLink class="nav-link" href="/admin" Match="NavLinkMatch.All"><LucideIcon Name="layout-dashboard" Size="16" /> Overview</NavLink>
+            <NavLink class="nav-link" href="/admin/conversations"><LucideIcon Name="messages-square" Size="16" /> Conversations</NavLink>
+            <NavLink class="nav-link" href="/admin/tickets"><LucideIcon Name="ticket" Size="16" /> Tickets</NavLink>
+            <NavLink class="nav-link" href="/admin/documents"><LucideIcon Name="file-text" Size="16" /> Documents</NavLink>
+            <NavLink class="nav-link" href="/admin/settings"><LucideIcon Name="settings" Size="16" /> Settings</NavLink>
+            <NavLink class="nav-link" href="/admin/test-chat"><LucideIcon Name="flask-conical" Size="16" /> Test as customer</NavLink>
+        </nav>
+        <div>
+            <header class="admin-topbar">
+                <strong>Brightline Admin</strong>
+                @if (Configuration.GetValue<bool>("Demo:Enabled"))
+                {
+                    <Badge Variant="BadgeVariant.WarningSoft">Demo</Badge>
+                }
+                <div class="right row">
+                    <AuthorizeView>
+                        <Authorized>
+                            <Avatar Size="AvatarSize.Small"><AvatarFallback>@Initials(context.User.Identity?.Name)</AvatarFallback></Avatar>
+                            <span class="small muted">@context.User.Identity?.Name</span>
+                        </Authorized>
+                    </AuthorizeView>
+                    <form method="post" action="/account/logout">
+                        <AntiforgeryToken />
+                        <Button Type="ButtonType.Submit" Variant="ButtonVariant.Ghost" Size="ButtonSize.Small">Sign out</Button>
+                    </form>
+                </div>
+            </header>
+            <main class="admin-main">
+                @Body
+            </main>
+        </div>
+    </div>
+    <ToastViewport />
+    <DialogHost />
+</AppProvider>
+
+@* Overlay components (sheets, popovers) render into these hosts. *@
+<NeoUI.Blazor.Primitives.Services.ContainerPortalHost />
+<NeoUI.Blazor.Primitives.Services.OverlayPortalHost />
+
+@code {
+    private static string Initials(string? name) =>
+        string.IsNullOrWhiteSpace(name) ? "?" : name[..1].ToUpperInvariant();
+}

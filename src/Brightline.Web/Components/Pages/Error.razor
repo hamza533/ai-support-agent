@@ -1,0 +1,26 @@
+@page "/error"
+@using System.Diagnostics
+@layout AuthLayout
+
+<PageTitle>Error · Brightline</PageTitle>
+
+<Card Class="auth-card">
+    <CardHeader>
+        <CardTitle><h1 style="font-size:20px">Something went wrong</h1></CardTitle>
+        <CardDescription>An error occurred while processing your request. Please try again.</CardDescription>
+    </CardHeader>
+    @if (!string.IsNullOrEmpty(RequestId))
+    {
+        <CardContent><p class="muted small">Request ID: <span class="mono">@RequestId</span></p></CardContent>
+    }
+</Card>
+
+@code {
+    [CascadingParameter]
+    private HttpContext? HttpContext { get; set; }
+
+    private string? RequestId { get; set; }
+
+    protected override void OnInitialized() =>
+        RequestId = Activity.Current?.Id ?? HttpContext?.TraceIdentifier;
+}
