@@ -1,3 +1,4 @@
+using Brightline.Agent;
 using Brightline.Ai;
 using Brightline.Knowledge;
 using Brightline.LegacyOrders.Client;
@@ -12,6 +13,7 @@ public static class Features
         services.AddLegacyOrdersClient(configuration);
         services.AddBrightlineAi(configuration);
         services.AddBrightlineKnowledge(configuration);
+        services.AddBrightlineAgent(configuration);
         services.AddScoped<KnowledgeSeeder>();
         services.AddScoped<ISeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());
         services.AddScoped<IStartupSeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());
