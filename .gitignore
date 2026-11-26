@@ -1,0 +1,28 @@
+# Build
+bin/
+obj/
+artifacts/
+TestResults/
+*.user
+*.suo
+# Secrets
+.env
+*.pfx
+appsettings.*.local.json
+# Tool-specific folders (CONVENTIONS 3a)
+.claude/
+.cursor/
+.codex/
+.gemini/
+.agent/
+.vscode/
+.idea/
+.vs/
+# Playwright / eval caches
+playwright-report/
+.playwright/
+eval/cache/
+eval/.storage/
+# OS
+.DS_Store
+Thumbs.db

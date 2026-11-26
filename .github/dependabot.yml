@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: nuget
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      microsoft-ai:
+        patterns: ["Microsoft.Extensions.AI*", "Microsoft.Agents.AI*", "Microsoft.Extensions.VectorData*"]
+      aspnetcore:
+        patterns: ["Microsoft.AspNetCore.*", "Microsoft.EntityFrameworkCore*", "Npgsql*"]
+      opentelemetry:
+        patterns: ["OpenTelemetry*", "Azure.Monitor.*"]
+  - package-ecosystem: docker
+    directory: /docker
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Brightline.Agent/Brightline.Agent.csproj" />
+    <Project Path="src/Brightline.Ai/Brightline.Ai.csproj" />
+    <Project Path="src/Brightline.Data/Brightline.Data.csproj" />
+    <Project Path="src/Brightline.Knowledge/Brightline.Knowledge.csproj" />
+    <Project Path="src/Brightline.LegacyOrders/Brightline.LegacyOrders.csproj" />
+    <Project Path="src/Brightline.LegacyOrders.Client/Brightline.LegacyOrders.Client.csproj" />
+    <Project Path="src/Brightline.Web/Brightline.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Brightline.UnitTests/Brightline.UnitTests.csproj" />
+  </Folder>
+</Solution>

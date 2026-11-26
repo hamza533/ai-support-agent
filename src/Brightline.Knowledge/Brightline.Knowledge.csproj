@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Brightline.Data\Brightline.Data.csproj" />
+    <ProjectReference Include="..\Brightline.Ai\Brightline.Ai.csproj" />
+  </ItemGroup>
+</Project>

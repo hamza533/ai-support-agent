@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: "1"
+  DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+  ContinuousIntegrationBuild: "true"
+
+jobs:
+  build-test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+      - uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/packages.lock.json') }}
+      - name: Restore
+        run: make setup
+      - name: Build (warnings as errors)
+        run: make build
+      - name: Format
+        run: make lint
+      - name: Test (unit, integration via Testcontainers, components)
+        run: make test
+
+  images:
+    runs-on: ubuntu-24.04
+    needs: build-test
+    strategy:
+      matrix:
+        image: [web, legacyorders]
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build image
+        run: docker build -f docker/${{ matrix.image }}.Dockerfile -t brightline-${{ matrix.image }}:ci .
+      - name: Scan image (Trivy)
+        uses: aquasecurity/trivy-action@0.33.1
+        with:
+          image-ref: brightline-${{ matrix.image }}:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

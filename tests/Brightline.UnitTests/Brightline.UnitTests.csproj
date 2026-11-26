@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Brightline.Web\Brightline.Web.csproj" />
+  </ItemGroup>
+</Project>
