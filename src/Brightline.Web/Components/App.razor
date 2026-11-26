@@ -10,11 +10,25 @@
     <link rel="stylesheet" href="@Assets["app.css"]" />
     <link rel="icon" type="image/svg+xml" href="@Assets["favicon.svg"]" />
     <script src="@Assets["_content/NeoUI.Blazor/js/theme.js"]"></script>
-    <ImportMap />
     <HeadOutlet @rendermode="PageRenderMode" />
 </head>
 <body>
-    <Routes @rendermode="PageRenderMode" />
+    <Routes @rendermode="PageRenderMode" ClientKey="@ClientKey" />
+
+    @* Shown while the live connection (re)starts – e.g. the free demo host waking up from sleep. *@
+    <div id="components-reconnect-modal" data-nosnippet>
+        <div class="reconnect-card" role="status">
+            <div class="when-waiting">
+                <strong>Waking up the demo server…</strong>
+                <p class="small muted">The free demo host sleeps when idle. This can take up to a minute.</p>
+            </div>
+            <div class="when-failed">
+                <strong>Connection lost</strong>
+                <p class="small muted"><a href="">Reload the page</a> to continue.</p>
+            </div>
+        </div>
+    </div>
+
     <script src="@Assets["_framework/blazor.web.js"]"></script>
     <script src="@Assets["js/app.js"]"></script>
 </body>
@@ -27,4 +41,7 @@
     // Account pages render statically (they set cookies); everything else is interactive server.
     private IComponentRenderMode? PageRenderMode =>
         HttpContext.AcceptsInteractiveRouting() ? InteractiveServer : null;
+
+    // Partition key for the chat rate limiter (the circuit has no HttpContext later).
+    private string ClientKey => HttpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

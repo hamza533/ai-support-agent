@@ -1,0 +1,31 @@
+<header class="site-header">
+    <div class="site-header-inner">
+        <a class="brand" href="/"><span class="brand-mark"><LucideIcon Name="zap" Size="16" /></span> Brightline</a>
+        @if (OnSearch.HasDelegate)
+        {
+            <form class="site-search" role="search" @onsubmit="() => OnSearch.InvokeAsync()" @onsubmit:preventDefault>
+                <label for="help-search" class="sr-only">Search help articles</label>
+                <input id="help-search" class="native-select w-full" type="search" placeholder="Search help articles"
+                       value="@Query" @oninput="e => QueryChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty)" />
+            </form>
+        }
+        <div class="right row">
+            <a class="small muted" href="/admin">Staff</a>
+            <Button OnClick="() => OnOpenChat.InvokeAsync()">Chat with support</Button>
+        </div>
+    </div>
+</header>
+
+@code {
+    [Parameter]
+    public string Query { get; set; } = string.Empty;
+
+    [Parameter]
+    public EventCallback<string> QueryChanged { get; set; }
+
+    [Parameter]
+    public EventCallback OnSearch { get; set; }
+
+    [Parameter]
+    public EventCallback OnOpenChat { get; set; }
+}

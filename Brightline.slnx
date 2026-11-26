@@ -9,6 +9,7 @@
     <Project Path="src/Brightline.Web/Brightline.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <Project Path="tests/Brightline.ComponentTests/Brightline.ComponentTests.csproj" />
     <Project Path="tests/Brightline.IntegrationTests/Brightline.IntegrationTests.csproj" />
     <Project Path="tests/Brightline.Testing/Brightline.Testing.csproj" />
     <Project Path="tests/Brightline.UnitTests/Brightline.UnitTests.csproj" />

@@ -17,3 +17,5 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   search merged with RRF, atomic re-index, ingestion jobs); synthetic help-centre documents in `sample_data/`.
 - M4 `Brightline.Agent`: Agent Framework agent with 7 tools, server-side verification, approval-required writes with
   server-built confirmation cards, idempotency keys, untrusted-data wrapping, citation binding, conversation audit trail.
+- M5 customer Help Center (home, search, articles) and streaming chat panel with numbered citations, verification chip,
+  order card, confirmation cards, "What I did" steps, ticket offer, error and cold-start states; bUnit component tests.

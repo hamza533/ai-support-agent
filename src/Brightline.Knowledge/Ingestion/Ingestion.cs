@@ -82,6 +82,8 @@ public sealed class KnowledgeIngestor(
 {
     public static readonly ActivitySource Activity = new("Brightline.Knowledge");
 
+    public const string KeywordOnlyNote = "Indexed for keyword search only (no AI provider configured). Re-index after adding an API key for semantic search.";
+
     public async Task<int> IngestAsync(Guid sourceId, Func<int, Task>? progress = null, CancellationToken ct = default)
     {
         using var activity = Activity.StartActivity("ingest source");
@@ -102,12 +104,28 @@ public sealed class KnowledgeIngestor(
         await Report(progress, 10);
 
         var records = new List<ChunkRecord>(textChunks.Count);
+        var semantic = true;
         for (var start = 0; start < textChunks.Count; start += o.EmbeddingBatchSize)
         {
             var batch = textChunks.Skip(start).Take(o.EmbeddingBatchSize).ToList();
             // Title + heading give each chunk its context for retrieval.
             var inputs = batch.Select(c => $"{title}\n{c.HeadingPath}\n\n{c.Text}").ToList();
-            var vectors = await embeddings.GenerateAsync(inputs, cancellationToken: ct);
+            IReadOnlyList<ReadOnlyMemory<float>?> vectors = batch.Select(_ => (ReadOnlyMemory<float>?)null).ToList();
+            if (semantic)
+            {
+                try
+                {
+                    var generated = await embeddings.GenerateAsync(inputs, cancellationToken: ct);
+                    vectors = generated.Select(v => (ReadOnlyMemory<float>?)v.Vector).ToList();
+                }
+                catch (AiNotConfiguredException ex)
+                {
+                    // No AI provider yet: index for keyword (full-text) search only; re-index later for vectors.
+                    logger.LogWarning("Indexing {SourceId} without embeddings: {Reason}", sourceId, ex.Message);
+                    semantic = false;
+                }
+            }
+
             records.AddRange(batch.Select((c, i) => new ChunkRecord
             {
                 Id = ChunkId(sourceId, newVersion, c.Index),
@@ -119,7 +137,7 @@ public sealed class KnowledgeIngestor(
                 Text = c.Text,
                 HeadingPath = c.HeadingPath,
                 Page = c.Page,
-                Embedding = vectors[i].Vector,
+                Embedding = vectors[i],
             }));
             await Report(progress, 10 + (int)(70.0 * Math.Min(textChunks.Count, start + batch.Count) / textChunks.Count));
         }
@@ -137,7 +155,7 @@ public sealed class KnowledgeIngestor(
                 .SetProperty(x => x.ChunkCount, records.Count)
                 .SetProperty(x => x.Title, title)
                 .SetProperty(x => x.Status, SourceStatus.Indexed)
-                .SetProperty(x => x.Error, (string?)null)
+                .SetProperty(x => x.Error, semantic ? null : KeywordOnlyNote)
                 .SetProperty(x => x.UpdatedAt, time.GetUtcNow()), ct);
             await tx.CommitAsync(ct);
         }
@@ -243,6 +261,11 @@ public sealed class KnowledgeService(AppDbContext db, JobQueue queue, IOptions<K
 
         await db.SaveChangesAsync(ct);
         var job = await queue.EnqueueAsync(JobKinds.IngestSource, new IngestPayload(source.Id, hash), $"ingest:{source.Id}:{hash}", ct: ct);
+        if (job.Status is JobStatus.Dead or JobStatus.Failed)
+        {
+            await queue.RetryAsync(job.Id, ct); // same content uploaded again after a failure: try again
+        }
+
         return new UploadResult(true, null, source.Id, job.Id);
     }
 

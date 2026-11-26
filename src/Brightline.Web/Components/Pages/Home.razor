@@ -1,8 +1,150 @@
 @page "/"
+@using Brightline.Data
+@using Brightline.Web.Components.Chat
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<AppDbContext> DbFactory
 
 <PageTitle>Brightline Help Center</PageTitle>
 
+<SiteHeader @bind-Query="_query" OnSearch="SearchAsync" OnOpenChat="() => OpenChat(null)" />
+
 <main class="site-main">
-    <h1>Brightline Help Center</h1>
-    <p class="muted">The customer chat arrives in milestone M5.</p>
+    <section class="hero">
+        <h1>How can we help?</h1>
+        <p>Answers about returns, delivery, warranty and payments — or ask Brightline Assistant to check your order.</p>
+    </section>
+
+    @if (_results is not null)
+    {
+        <section class="stack" aria-label="Search results" style="margin-bottom:32px">
+            <div class="row-between">
+                <h2 class="section-title">Results for “@_lastQuery”</h2>
+                <Button Variant="ButtonVariant.Ghost" Size="ButtonSize.Small" OnClick="ClearSearch">Clear</Button>
+            </div>
+            @if (_results.Count == 0)
+            {
+                <Card><CardContent Class="stack-sm" style="padding-top:20px">
+                    <p>No articles matched. Ask Brightline Assistant instead — it can also open a ticket for you.</p>
+                    <div><Button OnClick="() => OpenChat(_lastQuery)">Ask the assistant</Button></div>
+                </CardContent></Card>
+            }
+            else
+            {
+                <ul class="article-list">
+                    @foreach (var r in _results)
+                    {
+                        <li><a class="article-link" href="@r.Uri"><LucideIcon Name="file-text" Size="16" /> <span class="grow">@r.Title</span><LucideIcon Name="chevron-right" Size="16" /></a></li>
+                    }
+                </ul>
+            }
+        </section>
+    }
+
+    <h2 class="section-title">Popular topics</h2>
+    <div class="topic-grid">
+        @foreach (var topic in Topics)
+        {
+            <a class="topic-card" href="@ArticleUri(topic.File)">
+                <span class="topic-icon"><LucideIcon Name="@topic.Icon" Size="18" /></span>
+                <strong>@topic.Title</strong>
+                <span class="small muted">@topic.Description</span>
+            </a>
+        }
+    </div>
+
+    <h2 class="section-title">Popular articles</h2>
+    @if (_articles is null)
+    {
+        <div class="stack-sm"><Skeleton Class="w-full" /><Skeleton Class="w-full" /><Skeleton Class="w-full" /></div>
+    }
+    else if (_articles.Count == 0)
+    {
+        <p class="muted">Articles are being indexed. Try again in a minute.</p>
+    }
+    else
+    {
+        <ul class="article-list" data-testid="article-list">
+            @foreach (var a in _articles)
+            {
+                <li><a class="article-link" href="@a.Uri"><LucideIcon Name="file-text" Size="16" /> <span class="grow">@a.Title</span><LucideIcon Name="chevron-right" Size="16" /></a></li>
+            }
+        </ul>
+    }
 </main>
+
+@if (_chatOpen)
+{
+    <ChatPanel InitialQuestion="@_initialQuestion" OnClose="() => _chatOpen = false" />
+}
+else
+{
+    <div class="fab">
+        <Button OnClick="() => OpenChat(null)" data-testid="open-chat">
+            <LucideIcon Name="message-circle" Size="18" /> Ask Brightline Assistant
+        </Button>
+    </div>
+}
+
+@code {
+    private sealed record Topic(string Title, string Description, string Icon, string File);
+
+    private sealed record ArticleLink(string Title, string Uri, string FileName);
+
+    private static readonly Topic[] Topics =
+    [
+        new("Returns & refunds", "30-day returns, refund timing, return labels", "rotate-ccw", "returns-and-refunds.md"),
+        new("Delivery", "Options, costs, tracking and missing parcels", "truck", "delivery-and-shipping.md"),
+        new("Warranty", "1-year cover, Care+ and how to claim", "shield-check", "warranty.md"),
+        new("Payments", "Accepted methods, Pay in 4, price protection", "credit-card", "payments-and-billing.md"),
+    ];
+
+    private List<ArticleLink>? _articles;
+    private List<ArticleLink>? _results;
+    private string _query = string.Empty;
+    private string _lastQuery = string.Empty;
+    private bool _chatOpen;
+    private string? _initialQuestion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await using var db = await DbFactory.CreateDbContextAsync();
+        _articles = await db.Sources.AsNoTracking()
+            .Where(s => s.Status == Brightline.Data.Entities.SourceStatus.Indexed)
+            .OrderBy(s => s.Title)
+            .Select(s => new ArticleLink(s.Title, s.Uri, s.FileName))
+            .ToListAsync();
+    }
+
+    private string ArticleUri(string file) =>
+        _articles?.FirstOrDefault(a => a.FileName == file)?.Uri ?? "#";
+
+    private async Task SearchAsync()
+    {
+        var q = _query.Trim();
+        if (q.Length < 2)
+        {
+            return;
+        }
+
+        _lastQuery = q;
+        var words = q.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => w.Length > 2).Take(6).ToList();
+        await using var db = await DbFactory.CreateDbContextAsync();
+        var ids = await db.Chunks.AsNoTracking()
+            .Where(c => c.IsActive && words.Any(w => EF.Functions.ILike(c.Text, "%" + w + "%") || EF.Functions.ILike(c.Title, "%" + w + "%")))
+            .Select(c => c.SourceId).Distinct().ToListAsync();
+        _results = await db.Sources.AsNoTracking().Where(s => ids.Contains(s.Id))
+            .OrderBy(s => s.Title).Select(s => new ArticleLink(s.Title, s.Uri, s.FileName)).ToListAsync();
+    }
+
+    private void ClearSearch()
+    {
+        _results = null;
+        _query = string.Empty;
+    }
+
+    private void OpenChat(string? question)
+    {
+        _initialQuestion = question;
+        _chatOpen = true;
+    }
+}

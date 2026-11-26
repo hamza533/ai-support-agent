@@ -1127,6 +1127,7 @@
         "dependencies": {
           "Azure.Monitor.OpenTelemetry.AspNetCore": "[1.6.0, )",
           "Brightline.Agent": "[0.1.0, )",
+          "Markdig": "[1.6.0, )",
           "Microsoft.AspNetCore.Authentication.OpenIdConnect": "[10.0.15, )",
           "Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore": "[10.0.15, )",
           "NeoUI.Blazor": "[4.5.5, )",
