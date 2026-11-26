@@ -1,0 +1,192 @@
+@page "/admin/documents"
+@attribute [Authorize(Policy = "staff")]
+@layout AdminLayout
+@inherits AdminPageBase
+@implements IDisposable
+@using Brightline.Data.Entities
+@using Brightline.Data.Jobs
+@using Brightline.Knowledge.Ingestion
+@using Brightline.Web.Admin
+@using Microsoft.Extensions.Options
+@inject AdminService Admin
+@inject IServiceScopeFactory Scopes
+@inject IOptions<KnowledgeOptions> KnowledgeOptions
+@inject IToastService Toasts
+
+<PageTitle>Documents · Brightline Admin</PageTitle>
+
+<h1 class="page-title">Documents &amp; ingestion</h1>
+
+<div class="two-col">
+    <div class="stack-lg">
+        <Card>
+            <CardContent Class="stack pt-lg">
+                <div class="upload-zone" data-testid="upload-zone">
+                    <LucideIcon Name="upload" Size="22" />
+                    <strong>Upload help-centre documents</strong>
+                    <span class="small muted">PDF, DOCX or Markdown · up to @(KnowledgeOptions.Value.MaxUploadBytes / 1024 / 1024) MB · checked by file content</span>
+                    <InputFile OnChange="UploadAsync" multiple accept=".pdf,.docx,.md,.markdown" disabled="@_uploading" aria-label="Choose files to upload" />
+                    @if (_uploading) { <Spinner Size="SpinnerSize.Small" /> }
+                </div>
+                @foreach (var error in _uploadErrors)
+                {
+                    <Alert Variant="AlertVariant.Destructive"><AlertDescription>@error</AlertDescription></Alert>
+                }
+            </CardContent>
+        </Card>
+
+        <Card>
+            <CardHeader><CardTitle>Documents</CardTitle></CardHeader>
+            <CardContent>
+                @if (_docs is null)
+                {
+                    <Skeleton Class="w-full" />
+                }
+                else
+                {
+                    <table class="table" data-testid="document-table">
+                        <thead><tr><th>Title</th><th>Type</th><th>Chunks</th><th>Version</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+                        <tbody>
+                            @foreach (var d in _docs)
+                            {
+                                <tr>
+                                    <td>
+                                        <a href="@d.Uri" target="_blank" rel="noopener">@(string.IsNullOrEmpty(d.Title) ? d.FileName : d.Title)</a>
+                                        @if (d.Error == KnowledgeIngestor.KeywordOnlyNote) { <div title="@d.Error"><Badge Variant="BadgeVariant.WarningSoft">Keyword search only</Badge></div> } else if (!string.IsNullOrEmpty(d.Error)) { <div class="xs text-danger">@d.Error</div> }
+                                    </td>
+                                    <td><span class="row small"><LucideIcon Name="@(d.Type switch { SourceType.Pdf => "file-type", SourceType.Docx => "file-text", _ => "file-code" })" Size="14" /> @d.Type</span></td>
+                                    <td>@d.ChunkCount</td>
+                                    <td>v@(d.ActiveVersion)</td>
+                                    <td><Badge Variant="@(d.Status switch { SourceStatus.Indexed => BadgeVariant.SuccessSoft, SourceStatus.Processing => BadgeVariant.InfoSoft, _ => BadgeVariant.DangerSoft })">@d.Status</Badge></td>
+                                    <td class="small muted">@Ago(d.UpdatedAt)</td>
+                                    <td>
+                                        <div class="row">
+                                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => ReindexAsync(d)">Re-index</Button>
+                                            @if (IsAdmin)
+                                            {
+                                                <Button Size="ButtonSize.Small" Variant="ButtonVariant.Ghost" OnClick="() => DeleteAsync(d)" AriaLabel="@($"Delete {d.Title}")"><LucideIcon Name="trash-2" Size="14" /></Button>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+            </CardContent>
+        </Card>
+    </div>
+
+    <Card>
+        <CardHeader><CardTitle>Ingestion jobs</CardTitle><CardDescription>Durable background jobs (survive restarts)</CardDescription></CardHeader>
+        <CardContent Class="stack tid-jobs">
+            @if (_jobs is { Count: 0 }) { <p class="muted small">No jobs yet.</p> }
+            @foreach (var j in _jobs ?? [])
+            {
+                <div class="stack-sm">
+                    <div class="row-between">
+                        <span class="small">#@j.Id · @j.Kind</span>
+                        <Badge Variant="@(j.Status switch { JobStatus.Succeeded => BadgeVariant.SuccessSoft, JobStatus.Running => BadgeVariant.InfoSoft, JobStatus.Queued => BadgeVariant.Muted, _ => BadgeVariant.DangerSoft })">@j.Status</Badge>
+                    </div>
+                    <Progress Value="@j.Progress" Max="100" />
+                    <div class="row-between xs muted">
+                        <span>Attempt @j.Attempts/@j.MaxAttempts · @Ago(j.UpdatedAt)</span>
+                        @if (j.Status is JobStatus.Dead or JobStatus.Failed)
+                        {
+                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => RetryAsync(j)">Retry</Button>
+                        }
+                    </div>
+                    @if (!string.IsNullOrEmpty(j.Error) && j.Status != JobStatus.Succeeded) { <span class="xs text-danger">@j.Error</span> }
+                </div>
+            }
+        </CardContent>
+    </Card>
+</div>
+
+@code {
+    private IReadOnlyList<Source>? _docs;
+    private IReadOnlyList<Job>? _jobs;
+    private readonly List<string> _uploadErrors = [];
+    private bool _uploading;
+    private Timer? _timer;
+
+    protected override async Task LoadAsync()
+    {
+        await RefreshAsync();
+        _timer = new Timer(_ => InvokeAsync(async () =>
+        {
+            if (_jobs?.Any(j => j.Status is JobStatus.Queued or JobStatus.Running) == true || _docs?.Any(d => d.Status == SourceStatus.Processing) == true)
+            {
+                await RefreshAsync();
+                StateHasChanged();
+            }
+        }), null, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2));
+    }
+
+    private async Task RefreshAsync()
+    {
+        _docs = await Admin.ListDocumentsAsync();
+        _jobs = await Admin.ListJobsAsync();
+    }
+
+    private async Task UploadAsync(InputFileChangeEventArgs e)
+    {
+        _uploading = true;
+        _uploadErrors.Clear();
+        var max = KnowledgeOptions.Value.MaxUploadBytes;
+        foreach (var file in e.GetMultipleFiles(20))
+        {
+            if (file.Size > max)
+            {
+                _uploadErrors.Add($"{file.Name}: larger than {max / 1024 / 1024} MB.");
+                continue;
+            }
+
+            using var ms = new MemoryStream();
+            await file.OpenReadStream(max).CopyToAsync(ms);
+            await using var scope = Scopes.CreateAsyncScope();
+            var result = await scope.ServiceProvider.GetRequiredService<KnowledgeService>().UploadAsync(file.Name, ms.ToArray());
+            if (!result.Ok)
+            {
+                _uploadErrors.Add($"{file.Name}: {result.Error}");
+            }
+            else
+            {
+                Toasts.Success($"{file.Name} uploaded", result.JobId is null ? "Unchanged – already indexed." : "Indexing in the background.");
+            }
+        }
+
+        _uploading = false;
+        await RefreshAsync();
+    }
+
+    private async Task ReindexAsync(Source d)
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<KnowledgeService>().ReindexAsync(d.Id);
+        Toasts.Info($"Re-indexing {d.Title}", "The current version stays searchable until the new one is ready.");
+        await RefreshAsync();
+    }
+
+    private async Task DeleteAsync(Source d)
+    {
+        if (!IsAdmin)
+        {
+            return; // server-side role check: staff can't delete
+        }
+
+        await using var scope = Scopes.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<KnowledgeService>().DeleteAsync(d.Id);
+        Toasts.Success($"{d.Title} deleted");
+        await RefreshAsync();
+    }
+
+    private async Task RetryAsync(Job job)
+    {
+        await using var scope = Scopes.CreateAsyncScope();
+        await scope.ServiceProvider.GetRequiredService<JobQueue>().RetryAsync(job.Id);
+        await RefreshAsync();
+    }
+
+    public void Dispose() => _timer?.Dispose();
+}

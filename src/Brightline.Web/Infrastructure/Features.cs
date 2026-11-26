@@ -14,6 +14,7 @@ public static class Features
         services.AddBrightlineAi(configuration);
         services.AddBrightlineKnowledge(configuration);
         services.AddBrightlineAgent(configuration);
+        services.AddScoped<Brightline.Web.Admin.AdminService>();
         services.AddScoped<KnowledgeSeeder>();
         services.AddScoped<ISeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());
         services.AddScoped<IStartupSeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());

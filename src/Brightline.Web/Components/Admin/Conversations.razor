@@ -1,0 +1,206 @@
+@page "/admin/conversations"
+@page "/admin/conversations/{Id:guid}"
+@attribute [Authorize(Policy = "staff")]
+@layout AdminLayout
+@inherits AdminPageBase
+@using System.Text.Json
+@using Brightline.Agent
+@using Brightline.Web.Admin
+@using Brightline.Web.Rendering
+@inject AdminService Admin
+@inject NavigationManager Nav
+
+<PageTitle>Conversations · Brightline Admin</PageTitle>
+
+<h1 class="page-title">Conversations</h1>
+
+<div class="split">
+    <Card>
+        <CardContent Class="stack pt">
+            <form @onsubmit="ReloadAsync" @onsubmit:preventDefault>
+                <label for="conv-search" class="sr-only">Search conversations</label>
+                <input id="conv-search" class="native-select w-full" type="search" placeholder="Search messages or customer" @bind="_search" />
+            </form>
+            <div class="row wrap">
+                @foreach (var f in Enum.GetValues<ConversationFilter>())
+                {
+                    <Button Size="ButtonSize.Small" Variant="@(f == _filter ? ButtonVariant.Default : ButtonVariant.Outline)" OnClick="() => SetFilterAsync(f)">@f</Button>
+                }
+            </div>
+            <div class="stack-sm" data-testid="conversation-list">
+                @if (_rows is null)
+                {
+                    <Skeleton Class="w-full" />
+                }
+                else if (_rows.Count == 0)
+                {
+                    <p class="muted small">No conversations.</p>
+                }
+                else
+                {
+                    @foreach (var r in _rows)
+                    {
+                        <a class="list-item @(r.Id == Id ? "selected" : null)" href="/admin/conversations/@r.Id">
+                            <span class="row-between">
+                                <span class="small"><strong>@r.Customer</strong></span>
+                                <span class="xs muted">@Ago(r.StartedAt)</span>
+                            </span>
+                            <span class="small muted truncate">@r.Preview</span>
+                            <span class="row">
+                                @if (r.Status == Brightline.Data.Entities.ConversationStatus.Escalated) { <Badge Variant="BadgeVariant.DangerSoft">Escalated</Badge> }
+                                @if (r.Verified) { <Badge Variant="BadgeVariant.SuccessSoft">Verified</Badge> } else { <Badge Variant="BadgeVariant.Muted">Unverified</Badge> }
+                                @if (r.IsTest) { <Badge Variant="BadgeVariant.InfoSoft">Test</Badge> }
+                            </span>
+                        </a>
+                    }
+                }
+            </div>
+        </CardContent>
+    </Card>
+
+    @if (Id is null)
+    {
+        <Card><CardContent Class="stack pt-xl"><p class="muted">Select a conversation to see its transcript and agent trace.</p></CardContent></Card>
+        <div></div>
+    }
+    else if (_detail is null)
+    {
+        <Card><CardContent Class="pt-xl"><p class="muted">@(_loading ? "Loading…" : "Conversation not found.")</p></CardContent></Card>
+        <div></div>
+    }
+    else
+    {
+        <Card>
+            <CardHeader>
+                <div class="row-between">
+                    <CardTitle>@(_detail.Conversation.CustomerLabel ?? "Unverified customer")</CardTitle>
+                    @if (_detail.Conversation.Status != Brightline.Data.Entities.ConversationStatus.Resolved)
+                    {
+                        <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="MarkResolvedAsync">Mark resolved</Button>
+                    }
+                    else
+                    {
+                        <Badge Variant="BadgeVariant.SuccessSoft">Resolved</Badge>
+                    }
+                </div>
+                <CardDescription>Started @_detail.Conversation.StartedAt.ToString("MMM d, yyyy HH:mm", Us) UTC · @_detail.Messages.Count messages</CardDescription>
+            </CardHeader>
+            <CardContent Class="stack tid-transcript">
+                @foreach (var m in _detail.Messages)
+                {
+                    <div class="msg @(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? "user" : "assistant")">
+                        @if (m.Message.Role != Brightline.Data.Entities.MessageRole.User) { <span class="avatar-bot" aria-hidden="true">B</span> }
+                        <div class="grow" style="@(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? "display:flex;justify-content:flex-end" : null)">
+                            <div class="bubble">@(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? m.Message.Text : SafeMarkdown.Render(m.Message.Text, m.Citations))</div>
+                            @if (m.Citations.Count > 0)
+                            {
+                                <div class="sources">
+                                    @foreach (var c in m.Citations)
+                                    {
+                                        <a class="source-card" href="@c.Uri" target="_blank" rel="noopener"><span class="cite">@c.Number</span> <span class="truncate">@c.Title · @c.HeadingPath</span></a>
+                                    }
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </CardContent>
+            <CardFooter>
+                <div class="row wrap small muted" data-testid="conversation-stats">
+                    <span>Tokens in/out: <strong>@_detail.Conversation.TokensIn.ToString("N0", Us) / @_detail.Conversation.TokensOut.ToString("N0", Us)</strong></span>
+                    <span>· First token: <strong>@(_detail.AvgTtftMs is { } t ? $"{t / 1000.0:0.0} s" : "–")</strong></span>
+                    <span>· Model: <strong>@(_detail.Conversation.Model ?? "–")</strong></span>
+                    <span>· Est. cost (Azure OpenAI): <strong>@_detail.EstimatedCost.ToString("$0.0000", Us)</strong></span>
+                </div>
+            </CardFooter>
+        </Card>
+
+        <Card>
+            <CardHeader><CardTitle>Agent trace</CardTitle><CardDescription>Tool calls with masked inputs</CardDescription></CardHeader>
+            <CardContent Class="trace tid-agent-trace">
+                @if (_detail.ToolCalls.Count == 0)
+                {
+                    <p class="muted small">No tool calls.</p>
+                }
+                @foreach (var call in _detail.ToolCalls)
+                {
+                    <div class="trace-card">
+                        <div class="row-between">
+                            <code class="mono">@call.Tool</code>
+                            <span class="xs muted">@call.LatencyMs ms</span>
+                        </div>
+                        <pre>@PrettyJson(call.Args)</pre>
+                        <div class="row wrap">
+                            <Badge Variant="@(call.ResultStatus is "ok" or "approved" ? BadgeVariant.SuccessSoft : call.ResultStatus is "cancelled" or "blocked" or "awaiting_confirmation" ? BadgeVariant.Muted : BadgeVariant.WarningSoft)">@call.ResultStatus.Replace('_', ' ')</Badge>
+                            <Badge Variant="@(call.Approval switch { Brightline.Data.Entities.ApprovalState.Approved => BadgeVariant.SuccessSoft, Brightline.Data.Entities.ApprovalState.Denied => BadgeVariant.DangerSoft, Brightline.Data.Entities.ApprovalState.Pending => BadgeVariant.WarningSoft, _ => BadgeVariant.Outline })">
+                                @(call.Approval switch { Brightline.Data.Entities.ApprovalState.Approved => "Approved by customer", Brightline.Data.Entities.ApprovalState.Denied => "Denied by customer", Brightline.Data.Entities.ApprovalState.Pending => "Awaiting approval", _ => "Approval not required" })
+                            </Badge>
+                        </div>
+                        @if (!string.IsNullOrEmpty(call.ResultSummary)) { <span class="xs muted">@call.ResultSummary</span> }
+                    </div>
+                }
+                @foreach (var t in _detail.Tickets)
+                {
+                    <a class="list-item" href="/admin/tickets?open=@t.Id"><strong>@t.Number</strong> <span class="small">@t.Subject</span></a>
+                }
+            </CardContent>
+        </Card>
+    }
+</div>
+
+@code {
+    private IReadOnlyList<ConversationRow>? _rows;
+    private ConversationDetail? _detail;
+    private ConversationFilter _filter;
+    private string _search = string.Empty;
+    private bool _loading;
+    private Guid? _loadedId;
+
+    [Parameter]
+    public Guid? Id { get; set; }
+
+    protected override async Task LoadAsync() => await ReloadAsync();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (Id != _loadedId)
+        {
+            _loadedId = Id;
+            _detail = null;
+            if (Id is { } id)
+            {
+                _loading = true;
+                _detail = await Admin.GetConversationAsync(id);
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task ReloadAsync() => _rows = await Admin.ListConversationsAsync(_filter, _search);
+
+    private async Task SetFilterAsync(ConversationFilter filter)
+    {
+        _filter = filter;
+        await ReloadAsync();
+    }
+
+    private async Task MarkResolvedAsync()
+    {
+        await Admin.SetConversationStatusAsync(Id!.Value, Brightline.Data.Entities.ConversationStatus.Resolved);
+        _detail = await Admin.GetConversationAsync(Id.Value);
+        await ReloadAsync();
+    }
+
+    private static string PrettyJson(string json)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(json);
+            return JsonSerializer.Serialize(doc.RootElement, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (JsonException)
+        {
+            return json;
+        }
+    }
+}

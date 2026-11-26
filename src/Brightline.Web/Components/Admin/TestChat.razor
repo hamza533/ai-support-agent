@@ -1,0 +1,24 @@
+@page "/admin/test-chat"
+@attribute [Authorize(Policy = "staff")]
+@layout AdminLayout
+@using Brightline.Web.Components.Chat
+
+<PageTitle>Test as customer · Brightline Admin</PageTitle>
+
+<div class="row-between">
+    <h1 class="page-title">Test as customer</h1>
+    <span class="small muted">Uses the live agent, tools and legacy API. Marked as a test: excluded from stats and the demo cap, purged after 7 days.</span>
+</div>
+
+<div style="max-width:760px">
+    <ChatPanel Embedded="true" IsTest="true" />
+</div>
+
+<Card>
+    <CardHeader><CardTitle>Demo story</CardTitle></CardHeader>
+    <CardContent Class="small stack-sm">
+        <p>Customer <strong>Maya Thompson</strong>, email <code>maya.t@example.com</code>, order <code>BL-10482</code> (delivered 9 days ago: Aurora Wireless Headphones, USB-C Charger 65W).</p>
+        <p>Try: “Can I return my headphones? The left ear cuts out.” → give the order number and email → confirm the return.</p>
+        <p>Other seeded customer: Daniel Okafor, <code>daniel.o@example.com</code>, order <code>BL-10555</code>.</p>
+    </CardContent>
+</Card>

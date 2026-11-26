@@ -19,3 +19,7 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   server-built confirmation cards, idempotency keys, untrusted-data wrapping, citation binding, conversation audit trail.
 - M5 customer Help Center (home, search, articles) and streaming chat panel with numbered citations, verification chip,
   order card, confirmation cards, "What I did" steps, ticket offer, error and cold-start states; bUnit component tests.
+- M6 admin console: overview (stats, conversations-per-day chart, recent agent actions, needs attention), conversations
+  (transcript, citations, agent trace with masked inputs and approvals, tokens, cost), tickets (drawer with status +
+  notes), documents (upload, re-index, delete, live ingestion jobs with retry), settings (agent, policies, locked
+  approvals, access), "Test as customer"; role checks (staff read, admin change).

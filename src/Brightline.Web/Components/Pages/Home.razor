@@ -23,7 +23,7 @@
             </div>
             @if (_results.Count == 0)
             {
-                <Card><CardContent Class="stack-sm" style="padding-top:20px">
+                <Card><CardContent Class="stack-sm pt-lg">
                     <p>No articles matched. Ask Brightline Assistant instead — it can also open a ticket for you.</p>
                     <div><Button OnClick="() => OpenChat(_lastQuery)">Ask the assistant</Button></div>
                 </CardContent></Card>

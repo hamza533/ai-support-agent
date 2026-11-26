@@ -209,3 +209,7 @@ textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .hero h1 { font-size: 34px; }
 .section-title { font-weight: 600; }
 .page-title { font-weight: 700; }
+.pt-sm { padding-top: 8px; }
+.pt { padding-top: 16px; }
+.pt-lg { padding-top: 20px; }
+.pt-xl { padding-top: 24px; }
