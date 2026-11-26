@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Brightline.LegacyOrders\Brightline.LegacyOrders.csproj" />
+    <ProjectReference Include="..\..\src\Brightline.LegacyOrders.Client\Brightline.LegacyOrders.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+  </ItemGroup>
+</Project>
