@@ -7,6 +7,7 @@ DOTNET ?= dotnet
 .PHONY: setup build test test-unit test-integration lint format check dev down seed eval migrate create-admin e2e clean
 
 setup: ## Restore packages and local tools
+	$(DOTNET) tool restore
 	$(DOTNET) restore $(SLN)
 
 build: ## Build with warnings as errors

@@ -1,16 +1,16 @@
 # PROGRESS – handoff log
 
 ## Status
-- **Current milestone:** M1 – Legacy Orders API
-- **Done:** M0 – solution foundation (build, format, 3 architecture tests green; docker compose stack starts: web, legacy API, Postgres 16 + pgvector 0.8.7 with two databases, Aspire Dashboard)
-- **In progress:** M1
-- **Next:** M2 – Data, auth, foundation services
+- **Current milestone:** M2 – Data, auth, foundation services
+- **Done:** M0 – solution foundation; M1 – Legacy Orders API + typed client (16 tests green: 9 integration against real Postgres, 7 unit)
+- **In progress:** M2
+- **Next:** M3 – AI provider + knowledge base
 
 | # | Milestone | Status |
 |---|---|---|
 | M0 | Solution foundation | ✅ done |
-| M1 | Legacy Orders API | in progress |
-| M2 | Data, auth, foundation services | – |
+| M1 | Legacy Orders API | ✅ done |
+| M2 | Data, auth, foundation services | in progress |
 | M3 | AI provider + knowledge base | – |
 | M4 | Agent + tools | – |
 | M5 | Customer chat UI | – |
@@ -41,7 +41,14 @@ Without them (Docker only):
 ```
 Stack: `make dev` → app http://localhost:5080/health, legacy API http://localhost:5081/health, Aspire Dashboard http://localhost:18888, Postgres on host port 55432.
 
+Legacy API by hand (with `make dev` running):
+```
+curl -X POST localhost:5081/api/verifications -H "X-Api-Key: dev-legacy-api-key-change-me" -H "Content-Type: application/json" -d '{"orderNumber":"BL-10482","email":"maya.t@example.com"}'
+```
+→ `{"customerId":1,"firstName":"Maya"}`. OpenAPI UI: http://localhost:5081/scalar. Integration tests need Docker (Testcontainers).
+
 Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` clean, all tests pass.
 
 ## Session log
 - 2026-11-26 – Claude Code – plan, architecture.md, package/licence research, M0 scaffold.
+- 2026-11-26 – Claude Code – M1: legacy Orders & Returns API (EF migrations, deterministic seed, API key, OpenAPI/Scalar, idempotent returns, reset) and typed client with standard resilience; Testcontainers integration tests.

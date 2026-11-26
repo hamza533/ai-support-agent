@@ -2,4 +2,18 @@
   <PropertyGroup>
     <UserSecretsId>brightline-legacy-8d3b7c41</UserSecretsId>
   </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks.EntityFrameworkCore" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Brightline.IntegrationTests" />
+  </ItemGroup>
 </Project>
