@@ -15,3 +15,5 @@ All notable changes to this project are documented here. Format: [Keep a Changel
 - M3 `Brightline.Ai` (IChatClient / IEmbeddingGenerator per `Ai:Provider`, throttle, timeouts/retries) and
   `Brightline.Knowledge` (PDF/DOCX/Markdown parsing with magic-byte checks, chunking, pgvector + full-text hybrid
   search merged with RRF, atomic re-index, ingestion jobs); synthetic help-centre documents in `sample_data/`.
+- M4 `Brightline.Agent`: Agent Framework agent with 7 tools, server-side verification, approval-required writes with
+  server-built confirmation cards, idempotency keys, untrusted-data wrapping, citation binding, conversation audit trail.
