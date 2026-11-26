@@ -9,7 +9,8 @@ RUN dotnet publish src/Brightline.LegacyOrders/Brightline.LegacyOrders.csproj -c
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15 AS runtime
 WORKDIR /app
 COPY --from=build /app ./
-ENV ASPNETCORE_URLS=http://+:8080     DOTNET_RUNNING_IN_CONTAINER=true
+ENV ASPNETCORE_URLS=http://+:8080 \
+    DOTNET_RUNNING_IN_CONTAINER=true
 EXPOSE 8080
 # Non-root user provided by the official image (UID 1654)
 USER $APP_UID

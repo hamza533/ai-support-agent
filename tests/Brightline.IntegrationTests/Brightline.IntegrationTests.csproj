@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Brightline.Web\Brightline.Web.csproj" />
+    <ProjectReference Include="../Brightline.Testing/Brightline.Testing.csproj" />
     <ProjectReference Include="..\..\src\Brightline.LegacyOrders\Brightline.LegacyOrders.csproj" Aliases="legacy" />
     <ProjectReference Include="..\..\src\Brightline.LegacyOrders.Client\Brightline.LegacyOrders.Client.csproj" />
   </ItemGroup>

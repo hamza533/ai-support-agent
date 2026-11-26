@@ -1,18 +1,18 @@
 # PROGRESS – handoff log
 
 ## Status
-- **Current milestone:** M3 – AI provider + knowledge base
-- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry (27 tests green)
-- **In progress:** M3
-- **Next:** M4 – Agent + tools
+- **Current milestone:** M4 – Agent + tools
+- **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs) (44 tests green)
+- **In progress:** M4
+- **Next:** M5 – Customer chat UI
 
 | # | Milestone | Status |
 |---|---|---|
 | M0 | Solution foundation | ✅ done |
 | M1 | Legacy Orders API | ✅ done |
 | M2 | Data, auth, foundation services | ✅ done |
-| M3 | AI provider + knowledge base | in progress |
-| M4 | Agent + tools | – |
+| M3 | AI provider + knowledge base | ✅ done |
+| M4 | Agent + tools | in progress |
 | M5 | Customer chat UI | – |
 | M6 | Admin console | – |
 | M7 | Evaluation | – |
@@ -53,3 +53,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 - 2026-11-26 – Claude Code – plan, architecture.md, package/licence research, M0 scaffold.
 - 2026-11-26 – Claude Code – M1: legacy Orders & Returns API (EF migrations, deterministic seed, API key, OpenAPI/Scalar, idempotent returns, reset) and typed client with standard resilience; Testcontainers integration tests.
 - 2026-11-26 – Claude Code – M2: app schema + migrations, Identity/Entra, Data Protection, job queue (SKIP LOCKED, backoff, dead-letter, lease recovery), retention, health/ready, rate limiting, CSP, OTel; integration tests.
+- 2026-11-27 – Claude Code – M3: Brightline.Ai provider registration (config switch test), Brightline.Knowledge ingestion + hybrid search, sample help-centre docs, shared test fakes.

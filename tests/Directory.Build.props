@@ -2,13 +2,14 @@
   <Import Project="$([MSBuild]::GetPathOfFileAbove('Directory.Build.props', '$(MSBuildThisFileDirectory)../'))" />
   <PropertyGroup>
     <IsPackable>false</IsPackable>
+    <IsTestSupport Condition="'$(MSBuildProjectName)' == 'Brightline.Testing' Or '$(MSBuildProjectName)' == 'Brightline.Eval'">true</IsTestSupport>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(IsTestSupport)' != 'true'">
     <IsTestProject>true</IsTestProject>
     <OutputType>Exe</OutputType>
   </PropertyGroup>
-  <ItemGroup>
+  <ItemGroup Condition="'$(IsTestSupport)' != 'true'">
     <PackageReference Include="xunit.v3" />
-  </ItemGroup>
-  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 </Project>
