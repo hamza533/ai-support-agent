@@ -15,7 +15,7 @@ public sealed class AiOptions
 
     /// <summary><c>gemini-openai-compat</c> (dev/demo), <c>azure-openai</c> (production), <c>openai</c>, or <c>fake</c> (tests).</summary>
     public string Provider { get; set; } = AiProviders.GeminiOpenAiCompat;
-    public string ChatModel { get; set; } = "gemini-3.6-flash";
+    public string ChatModel { get; set; } = "gemini-3.5-flash-lite";
     public string EmbeddingModel { get; set; } = "gemini-embedding-001";
 
     /// <summary>Must match the <c>vector(768)</c> column. Changing it needs a migration and a full re-index.</summary>
