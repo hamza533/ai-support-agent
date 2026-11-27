@@ -119,7 +119,9 @@ public sealed class AgentSafetyTests
 
         var result = await InvokeAsync(tools, SupportTools.GetOrderStatusName, Args(("orderNumber", "BL-10555"), ("email", FakeLegacyOrdersClient.DanielEmail)));
 
-        Assert.Contains("different_customer", result, StringComparison.Ordinal);
+        Assert.Contains("verification_failed", result, StringComparison.Ordinal); // no confirmation the other details are valid
+        Assert.DoesNotContain("BL-10555", result, StringComparison.Ordinal);
+        Assert.Equal(1, session.FailedVerifications);
         Assert.Equal(FakeLegacyOrdersClient.MayaId, session.VerifiedCustomerId);
     }
 

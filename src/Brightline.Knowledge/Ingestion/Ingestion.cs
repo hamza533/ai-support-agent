@@ -189,9 +189,10 @@ public sealed class IngestionJobHandler(KnowledgeIngestor ingestor, AppDbContext
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             var finalAttempt = context.Job.Attempts >= context.Job.MaxAttempts || ex is AiNotConfiguredException;
-            await db.Sources.Where(s => s.Id == payload.SourceId && s.ActiveVersion == 0).ExecuteUpdateAsync(s => s
-                .SetProperty(x => x.Status, finalAttempt ? SourceStatus.Failed : SourceStatus.Processing)
-                .SetProperty(x => x.Error, ex.Message)
+            // A failed first index marks the source Failed; a failed RE-index keeps the previous version searchable.
+            await db.Sources.Where(s => s.Id == payload.SourceId).ExecuteUpdateAsync(s => s
+                .SetProperty(x => x.Status, x => x.ActiveVersion > 0 ? SourceStatus.Indexed : finalAttempt ? SourceStatus.Failed : SourceStatus.Processing)
+                .SetProperty(x => x.Error, x => x.ActiveVersion > 0 ? "Re-index failed, previous version still active: " + ex.Message : ex.Message)
                 .SetProperty(x => x.UpdatedAt, time.GetUtcNow()), CancellationToken.None);
             if (ex is AiNotConfiguredException)
             {

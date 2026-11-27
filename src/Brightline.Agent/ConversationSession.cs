@@ -60,19 +60,18 @@ public sealed class ConversationSession
         VerifiedCustomerId = customer.CustomerId;
         VerifiedFirstName = customer.FirstName;
         VerifiedEmailMasked = PiiMasker.MaskEmail(email);
-        FailedVerifications = 0;
+        // The failure counter is NOT reset: a chat gets 5 failed attempts in total (no guessing after one success).
         return true;
     }
 
     public void RecordFailedVerification() => FailedVerifications++;
 
-    /// <summary>Starts a new assistant turn: citation numbers restart at 1.</summary>
+    /// <summary>
+    /// Starts a new assistant turn. Citation numbers are kept for the whole conversation (never reset), because earlier
+    /// numbered results stay in the model's history: [2] must always mean the same source.
+    /// </summary>
     public void BeginTurn()
     {
-        lock (_lock)
-        {
-            _citations.Clear();
-        }
     }
 
     public IReadOnlyList<Citation> RegisterSources(IEnumerable<SearchHit> hits)
@@ -129,7 +128,7 @@ public static partial class UntrustedData
 
     private static string Sanitize(string value) => new([.. value.Where(c => char.IsLetterOrDigit(c) || c is '-' or '_' or ' ' or '.' or '/')]);
 
-    [GeneratedRegex(@"</?\s*untrusted_data[^>]*>", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"<\s*/?\s*untrusted_data[^>]*>", RegexOptions.IgnoreCase)]
     private static partial Regex TagRegex();
 }
 

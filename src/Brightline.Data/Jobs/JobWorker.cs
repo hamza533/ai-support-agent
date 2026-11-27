@@ -105,14 +105,14 @@ public sealed class JobWorker(
 
         try
         {
-            var context = new JobContext(job, p => queue.ReportProgressAsync(job.Id, p, CancellationToken.None));
+            var context = new JobContext(job, p => queue.ReportProgressAsync(job, p, options.Value.Lease, CancellationToken.None));
             await handler.HandleAsync(context, ct);
-            await queue.CompleteAsync(job.Id, CancellationToken.None);
+            await queue.CompleteAsync(job, CancellationToken.None);
             logger.LogInformation("Job {JobId} ({Kind}) succeeded", job.Id, job.Kind);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
         {
-            await queue.ReleaseAsync(job.Id, CancellationToken.None);
+            await queue.ReleaseAsync(job, CancellationToken.None);
             logger.LogInformation("Job {JobId} released on shutdown", job.Id);
             throw;
         }

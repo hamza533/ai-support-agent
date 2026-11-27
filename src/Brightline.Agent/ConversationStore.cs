@@ -107,7 +107,7 @@ public sealed class ConversationStore(IDbContextFactory<AppDbContext> dbFactory,
     {
         await EnsurePersistedAsync(session, ct);
         await using var db = await dbFactory.CreateDbContextAsync(ct);
-        var row = await db.ToolCalls.SingleOrDefaultAsync(t => t.ConversationId == session.ConversationId && t.CallId == record.CallId, ct);
+        var row = await db.ToolCalls.FirstOrDefaultAsync(t => t.ConversationId == session.ConversationId && t.CallId == record.CallId, ct);
         if (row is null)
         {
             row = new ToolCall { ConversationId = session.ConversationId, CallId = record.CallId, Tool = record.Tool, CreatedAt = time.GetUtcNow() };

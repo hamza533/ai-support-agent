@@ -159,6 +159,28 @@ public sealed class LegacyApiTests(LegacyApiFixture fixture) : IClassFixture<Leg
     }
 
     [Fact]
+    public async Task Concurrent_returns_with_different_keys_cannot_exceed_the_quantity_bought()
+    {
+        var danielId = await fixture.CustomerIdAsync(LegacySeeder.DanielEmail);
+        var attempts = Enumerable.Range(0, 4).Select(async i =>
+        {
+            var api = fixture.Factory.CreateTypedClient();
+            try
+            {
+                return (await api.CreateReturnAsync(danielId, new NewReturn(LegacySeeder.DanielOrder, "ACC-SLEEVE-14", 1, "Defective zip"), $"race-{i}-{Guid.NewGuid():N}", Ct)).Created;
+            }
+            catch (LegacyOrdersRejectedException)
+            {
+                return false;
+            }
+        });
+
+        var created = (await Task.WhenAll(attempts)).Count(c => c);
+
+        Assert.Equal(1, created); // the sleeve was bought once
+    }
+
+    [Fact]
     public async Task Admin_reset_requires_the_admin_key_and_reseeds()
     {
         using var client = fixture.Factory.CreateApiClient();

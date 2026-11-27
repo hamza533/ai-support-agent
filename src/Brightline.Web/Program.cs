@@ -25,7 +25,12 @@ if (workerOnly)
     return 0;
 }
 
-app.UseForwardedHeaders();
+// Behind Render / Container Apps the platform proxy sets X-Forwarded-*; only trust it when configured, otherwise a
+// client could spoof its IP to dodge the per-IP rate limits.
+if (app.Configuration.GetValue<bool>("Security:TrustForwardedHeaders"))
+{
+    app.UseForwardedHeaders();
+}
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseExceptionHandler("/error", createScopeForErrors: true);

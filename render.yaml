@@ -65,3 +65,5 @@ services:
         value: "10"
       - key: Security__HttpsRedirection
         value: "false" # Render terminates TLS at its proxy
+      - key: Security__TrustForwardedHeaders
+        value: "true" # client IP + scheme come from Render's proxy

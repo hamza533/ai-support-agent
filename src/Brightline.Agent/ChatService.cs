@@ -43,6 +43,7 @@ public sealed class ChatService(
 
     private sealed class PendingApproval(ToolApprovalRequestContent request, ApprovalCard card)
     {
+        // Approved is null until the customer answers; tools that need no approval are pre-approved.
         public ToolApprovalRequestContent Request { get; } = request;
 
         public ApprovalCard Card { get; } = card;
@@ -114,10 +115,7 @@ public sealed class ChatService(
             yield break; // wait until every card of this turn is answered
         }
 
-        var responses = _pending.Values.Select(p => (AIContent)p.Request.CreateResponse(
-            p.Approved == true,
-            p.Approved == true ? null : p.Card.Allowed ? "The customer cancelled this action." : $"Blocked by policy: {p.Card.BlockedReason}")).ToList();
-        _pending.Clear();
+        var responses = BuildApprovalResponses();
         Session.BeginTurn();
         await foreach (var e in RunTurnAsync([new ChatMessage(ChatRole.User, responses)], ct))
         {
@@ -198,11 +196,31 @@ public sealed class ChatService(
             yield return error;
         }
 
-        // Turn approval requests into server-built confirmation cards.
+        // Turn approval requests into server-built confirmation cards. If the model called a write tool together with
+        // other tools in one response, MEAI asks approval for all of them: tools that don't need approval are approved
+        // automatically here (no card), so only data-changing actions ever reach the customer.
+        var autoApproved = 0;
         foreach (var request in approvals)
         {
             var call = (FunctionCallContent)request.ToolCall;
-            var card = await _tools!.DescribeApprovalAsync(request.RequestId, call, ct);
+            if (!SupportTools.ApprovalTools.Contains(call.Name))
+            {
+                _pending[request.RequestId] = new PendingApproval(request, new ApprovalCard(request.RequestId, call.Name, string.Empty, [], string.Empty, true, null)) { Approved = true };
+                autoApproved++;
+                continue;
+            }
+
+            ApprovalCard card;
+            try
+            {
+                card = await _tools!.DescribeApprovalAsync(request.RequestId, call, ct);
+            }
+            catch (LegacyOrdersUnavailableException)
+            {
+                card = new ApprovalCard(request.RequestId, call.Name, "Order system unavailable", [], string.Empty, false,
+                    "The order system can't be reached right now, so nothing can be changed. Offer to create a support ticket instead.");
+            }
+
             _pending[request.RequestId] = new PendingApproval(request, card);
             await store.RecordToolCallAsync(Session, new ToolCallRecord(
                 call.CallId, call.Name, SupportTools.MaskArgs(call.Arguments ?? new Dictionary<string, object?>()),
@@ -233,6 +251,25 @@ public sealed class ChatService(
         activity?.SetTag("tokens.in", tokensIn);
         activity?.SetTag("tokens.out", tokensOut);
         activity?.SetTag("ttft.ms", ttft);
+
+        if (autoApproved > 0 && _pending.Values.All(p => p.Approved is not null))
+        {
+            // Nothing for the customer to confirm: continue the turn with the automatic approvals.
+            var responses = BuildApprovalResponses();
+            await foreach (var e in RunTurnAsync([new ChatMessage(ChatRole.User, responses)], ct))
+            {
+                yield return e;
+            }
+        }
+    }
+
+    private List<AIContent> BuildApprovalResponses()
+    {
+        var responses = _pending.Values.Select(p => (AIContent)p.Request.CreateResponse(
+            p.Approved == true,
+            p.Approved == true ? null : p.Card.Allowed ? "The customer cancelled this action." : $"Blocked by policy: {p.Card.BlockedReason}")).ToList();
+        _pending.Clear();
+        return responses;
     }
 
     private async Task EnsureAgentAsync(CancellationToken ct)

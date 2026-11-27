@@ -101,7 +101,7 @@
                         <span>Attempt @j.Attempts/@j.MaxAttempts · @Ago(j.UpdatedAt)</span>
                         @if (j.Status is JobStatus.Dead or JobStatus.Failed)
                         {
-                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => RetryAsync(j)">Retry</Button>
+                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => RetryAsync(j)" Disabled="ReadOnlyDemo">Retry</Button>
                         }
                     </div>
                     @if (!string.IsNullOrEmpty(j.Error) && j.Status != JobStatus.Succeeded) { <span class="xs text-danger">@j.Error</span> }
@@ -204,6 +204,11 @@
 
     private async Task RetryAsync(Job job)
     {
+        if (ReadOnlyDemo)
+        {
+            return;
+        }
+
         await using var scope = Scopes.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<JobQueue>().RetryAsync(job.Id);
         await RefreshAsync();

@@ -89,9 +89,7 @@ public sealed partial class SupportTools(
             var results = hits.Zip(citations, (h, c) => new
             {
                 source = c.Number,
-                title = h.Title,
-                section = h.HeadingPath,
-                content = UntrustedData.Wrap($"help-centre: {h.Title}", h.Text),
+                content = UntrustedData.Wrap("help-centre", $"Article: {h.Title}\nSection: {h.HeadingPath}\n\n{h.Text}"),
             });
             return Ok(new { results }, $"{hits.Count} results");
         }, ct);
@@ -128,7 +126,9 @@ public sealed partial class SupportTools(
 
             if (!session.TryVerify(customer, email))
             {
-                return Fail("different_customer", "This chat is already verified for a different customer. The customer must start a new chat.");
+                // Same answer as a mismatch (no confirmation that another customer's details are valid) and it counts as a failure.
+                session.RecordFailedVerification();
+                return Fail("verification_failed", "These details can't be used in this chat (it is already verified for one customer). Ask the customer to start a new chat for a different order.");
             }
 
             await store.MarkVerifiedAsync(session, ct);
@@ -183,7 +183,7 @@ public sealed partial class SupportTools(
                 daysSinceDelivery = result.DaysSinceDelivery,
                 windowDays = result.WindowDays,
                 category = result.Category,
-                item = line!.Name,
+                item = UntrustedData.Neutralize(line!.Name),
                 returnableQuantity = result.ReturnableQuantity,
                 maxItemsPerReturn = settings.MaxItemsPerReturn,
                 refund = "Refund to the original payment method once the item is received and inspected.",
@@ -200,14 +200,18 @@ public sealed partial class SupportTools(
         CancellationToken ct = default)
     {
         sku ??= string.Empty;
-        var key = IdempotencyKey(session.ConversationId, "return", NormalizeOrderNumber(orderNumber), sku.Trim().ToUpperInvariant());
-        return RunAsync(CreateReturnRequestName, new { orderNumber, sku, quantity, condition, reason }, key, async () =>
+        string? key = null;
+        return RunAsync(CreateReturnRequestName, new { orderNumber, sku, quantity, condition, reason }, () => key, async () =>
         {
             var check = await PrepareReturnAsync(orderNumber, sku, quantity, condition, reason, ct);
             if (check.Error is not null)
             {
                 return check.Error;
             }
+
+            // Keyed on conversation + resolved order line (not the model's wording of the SKU), so a retry that names
+            // the item differently still maps to the same return.
+            key = IdempotencyKey(session.ConversationId, "return", check.Order!.Number, check.Line!.LineId.ToString(CultureInfo.InvariantCulture));
 
             var result = await orders.CreateReturnAsync(
                 session.VerifiedCustomerId!.Value,
@@ -234,7 +238,7 @@ public sealed partial class SupportTools(
         var key = IdempotencyKey(session.ConversationId, "ticket", Normalize(subject), Normalize(category));
         return RunAsync(CreateSupportTicketName, new { subject, category, priority, summary, orderNumber }, key, async () =>
         {
-            var prepared = PrepareTicket(subject, category, priority, summary, orderNumber);
+            var prepared = await PrepareOwnedTicketAsync(subject, category, priority, summary, orderNumber, ct);
             if (prepared.Error is not null)
             {
                 return prepared.Error;
@@ -306,7 +310,7 @@ public sealed partial class SupportTools(
 
         if (call.Name == CreateSupportTicketName)
         {
-            var prepared = PrepareTicket(Arg("subject"), Arg("category"), Arg("priority"), Arg("summary"), Arg("orderNumber"));
+            var prepared = await PrepareOwnedTicketAsync(Arg("subject"), Arg("category"), Arg("priority"), Arg("summary"), Arg("orderNumber"), ct);
             if (prepared.Error is not null)
             {
                 return new ApprovalCard(requestId, call.Name, "Ticket can't be created", [], string.Empty, false, ErrorMessage(prepared.Error));
@@ -364,6 +368,28 @@ public sealed partial class SupportTools(
     }
 
     private sealed record TicketCheck(Ticket? Ticket, string? Error);
+
+    /// <summary>Like <see cref="PrepareTicket"/>, and only keeps the order link if the order belongs to the verified customer.</summary>
+    private async Task<TicketCheck> PrepareOwnedTicketAsync(string subject, string category, string priority, string summary, string? orderNumber, CancellationToken ct)
+    {
+        var check = PrepareTicket(subject, category, priority, summary, orderNumber);
+        if (check.Ticket?.OrderNumber is { } linked && session.VerifiedCustomerId is { } customerId)
+        {
+            try
+            {
+                if (await orders.GetOrderAsync(customerId, linked, ct) is null)
+                {
+                    check.Ticket.OrderNumber = null;
+                }
+            }
+            catch (LegacyOrdersUnavailableException)
+            {
+                check.Ticket.OrderNumber = null; // can't prove ownership right now: don't link
+            }
+        }
+
+        return check;
+    }
 
     private TicketCheck PrepareTicket(string subject, string category, string priority, string summary, string? orderNumber)
     {
@@ -463,7 +489,10 @@ public sealed partial class SupportTools(
     }
 
     /// <summary>Runs a tool: timing, error mapping (order system down → offer a ticket) and the masked audit record.</summary>
-    private async Task<string> RunAsync(string tool, object args, string? idempotencyKey, Func<Task<string>> body, CancellationToken ct, ApprovalState approval = ApprovalState.NotRequired)
+    private Task<string> RunAsync(string tool, object args, string? idempotencyKey, Func<Task<string>> body, CancellationToken ct, ApprovalState approval = ApprovalState.NotRequired) =>
+        RunAsync(tool, args, () => idempotencyKey, body, ct, approval);
+
+    private async Task<string> RunAsync(string tool, object args, Func<string?> idempotencyKey, Func<Task<string>> body, CancellationToken ct, ApprovalState approval)
     {
         var callId = FunctionInvokingChatClient.CurrentContext?.CallContent.CallId ?? Guid.NewGuid().ToString("N");
         session.Publish(new ToolActivity(callId, tool, ToolLabel(tool), "running"));
@@ -490,7 +519,7 @@ public sealed partial class SupportTools(
         sw.Stop();
         var summary = ExtractSummary(ref result);
         session.Publish(new ToolActivity(callId, tool, ToolLabel(tool), status == "ok" ? "succeeded" : "failed"));
-        await store.RecordToolCallAsync(session, new ToolCallRecord(callId, tool, MaskArgs(args), status, summary, approval, idempotencyKey, (int)sw.ElapsedMilliseconds), ct);
+        await store.RecordToolCallAsync(session, new ToolCallRecord(callId, tool, MaskArgs(args), status, summary, approval, idempotencyKey(), (int)sw.ElapsedMilliseconds), ct);
         return result;
     }
 

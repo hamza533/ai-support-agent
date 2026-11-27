@@ -190,7 +190,18 @@ public sealed class IdentityBootstrapper(
         }
     }
 
-    /// <summary>Creates (or resets) a user in a role. Returns the password used (generated when none is given).</summary>
+    /// <summary>Admin console "Add user": creates a NEW account only (never resets an existing one). Returns the generated password.</summary>
+    public async Task<string> CreateNewUserAsync(string email, string role)
+    {
+        if (await users.FindByEmailAsync(email) is not null)
+        {
+            throw new InvalidOperationException("A user with this email already exists.");
+        }
+
+        return await CreateUserAsync(email, role, null);
+    }
+
+    /// <summary>Creates (or resets, for the --create-admin command) a user in a role. Returns the password used (generated when none is given).</summary>
     public async Task<string> CreateUserAsync(string email, string role, string? password, string? displayName = null)
     {
         await EnsureRolesAsync();
