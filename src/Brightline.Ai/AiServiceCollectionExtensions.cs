@@ -15,7 +15,7 @@ public sealed class AiOptions
 
     /// <summary><c>gemini-openai-compat</c> (dev/demo), <c>azure-openai</c> (production), <c>openai</c>, or <c>fake</c> (tests).</summary>
     public string Provider { get; set; } = AiProviders.GeminiOpenAiCompat;
-    public string ChatModel { get; set; } = "gemini-3.8-flash";
+    public string ChatModel { get; set; } = "gemini-3.6-flash";
     public string EmbeddingModel { get; set; } = "gemini-embedding-001";
 
     /// <summary>Must match the <c>vector(768)</c> column. Changing it needs a migration and a full re-index.</summary>
@@ -112,7 +112,10 @@ public static class AiServiceCollectionExtensions
     };
 
     /// <summary>All providers speak the OpenAI wire protocol, so one SDK covers them; only endpoint and auth differ.</summary>
-    public static OpenAIClient CreateOpenAiClient(AiOptions options)
+    public static OpenAIClient CreateOpenAiClient(AiOptions options) => CreateOpenAiClient(options, transport: null);
+
+    /// <summary>Same as <see cref="CreateOpenAiClient(AiOptions)"/>; tests pass a fake <paramref name="transport"/>.</summary>
+    internal static OpenAIClient CreateOpenAiClient(AiOptions options, PipelineTransport? transport)
     {
         var clientOptions = new OpenAIClientOptions
         {
@@ -121,10 +124,16 @@ public static class AiServiceCollectionExtensions
             UserAgentApplicationId = "brightline-support-agent",
         };
 
+        if (transport is not null)
+        {
+            clientOptions.Transport = transport;
+        }
+
         switch (options.Provider)
         {
             case AiProviders.GeminiOpenAiCompat:
                 clientOptions.Endpoint = new Uri(options.Gemini.BaseUrl);
+                clientOptions.AddPolicy(new GeminiThoughtSignaturePolicy(), PipelinePosition.PerCall);
                 return new OpenAIClient(new ApiKeyCredential(options.Gemini.ApiKey), clientOptions);
 
             case AiProviders.AzureOpenAi:
