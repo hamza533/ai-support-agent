@@ -235,8 +235,8 @@ public sealed partial class SupportTools(
         [Description("Related order number if any, format BL-12345, otherwise empty.")] string? orderNumber = null,
         CancellationToken ct = default)
     {
-        var key = IdempotencyKey(session.ConversationId, "ticket", Normalize(subject), Normalize(category));
-        return RunAsync(CreateSupportTicketName, new { subject, category, priority, summary, orderNumber }, key, async () =>
+        string? key = null;
+        return RunAsync(CreateSupportTicketName, new { subject, category, priority, summary, orderNumber }, () => key, async () =>
         {
             var prepared = await PrepareOwnedTicketAsync(subject, category, priority, summary, orderNumber, ct);
             if (prepared.Error is not null)
@@ -244,7 +244,16 @@ public sealed partial class SupportTools(
                 return prepared.Error;
             }
 
-            var (ticket, created) = await CreateTicketAsync(prepared.Ticket!, key, ct);
+            // Keyed on what the server checked, not the model's wording: a ticket about a (verified, owned) order is one
+            // per category per order per conversation, so "create it again to be safe" with a reworded subject finds the
+            // first one. Without an order the subject stays in the key so unrelated questions don't merge.
+            var t = prepared.Ticket!;
+            var ticketKey = t.OrderNumber is { } linked
+                ? IdempotencyKey(session.ConversationId, "ticket", t.Category, linked)
+                : IdempotencyKey(session.ConversationId, "ticket", t.Category, Normalize(subject));
+            key = ticketKey;
+
+            var (ticket, created) = await CreateTicketAsync(t, ticketKey, ct);
             var message = $"Ticket {ticket.Number} {(created ? "created" : "already exists")}. Our team replies within 1 business day.";
             session.Publish(new ActionCompleted("ticket", ticket.Number, message));
             return Ok(new { ticketNumber = ticket.Number, created, expectedResponse = "within 1 business day", message }, $"{ticket.Number} ({(created ? "created" : "existing")})");

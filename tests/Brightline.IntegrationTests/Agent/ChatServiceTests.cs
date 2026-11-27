@@ -97,6 +97,50 @@ public sealed class ChatServiceTests(AppFixture fixture) : IClassFixture<AppFixt
     }
 
     [Fact]
+    public async Task A_repeat_ticket_with_a_reworded_subject_is_still_created_once()
+    {
+        // Found by the live eval (S19): asked to "create that same ticket again", the model added "(Duplicate request)".
+        Dictionary<string, object?> Ticket(string subject) => Args(("subject", subject), ("category", "orders"), ("priority", "normal"),
+            ("summary", "Customer needs a copy of the invoice."), ("orderNumber", "BL-10482"));
+        var model = new ScriptedChatClient(
+            Invoke(SupportTools.GetOrderStatusName, Args(("orderNumber", "BL-10482"), ("email", FakeLegacyOrdersClient.MayaEmail))),
+            Invoke(SupportTools.CreateSupportTicketName, Ticket("Copy of invoice for order BL-10482")),
+            messages => Text(LastToolResult(messages) ?? string.Empty),
+            Invoke(SupportTools.CreateSupportTicketName, Ticket("Copy of invoice for order BL-10482 (Duplicate request)")),
+            messages => Text(LastToolResult(messages) ?? string.Empty));
+        var (chat, scope) = Create(model);
+        await using var _ = scope;
+
+        var card = (await AgentHarness.CollectAsync(chat.SendAsync("I need a copy of my invoice", Ct))).OfType<ApprovalCard>().Single();
+        await AgentHarness.CollectAsync(chat.RespondToApprovalAsync(card.RequestId, true, Ct));
+        var card2 = (await AgentHarness.CollectAsync(chat.SendAsync("create that same ticket again to be safe", Ct))).OfType<ApprovalCard>().Single();
+        var again = await AgentHarness.CollectAsync(chat.RespondToApprovalAsync(card2.RequestId, true, Ct));
+
+        Assert.Contains("already exists", again.OfType<AssistantMessage>().Single().Text, StringComparison.Ordinal);
+        Assert.Equal(1, await DbAsync(db => db.Tickets.CountAsync(t => t.ConversationId == chat.Session.ConversationId, Ct)));
+    }
+
+    [Fact]
+    public async Task Unrelated_tickets_without_an_order_are_not_merged()
+    {
+        Dictionary<string, object?> Ticket(string subject) => Args(("subject", subject), ("category", "other"), ("priority", "low"), ("summary", "Customer question for the team."));
+        var model = new ScriptedChatClient(
+            Invoke(SupportTools.CreateSupportTicketName, Ticket("Question about gift wrapping")),
+            messages => Text(LastToolResult(messages) ?? string.Empty),
+            Invoke(SupportTools.CreateSupportTicketName, Ticket("Question about corporate discounts")),
+            messages => Text(LastToolResult(messages) ?? string.Empty));
+        var (chat, scope) = Create(model);
+        await using var _ = scope;
+
+        var card = (await AgentHarness.CollectAsync(chat.SendAsync("ticket about gift wrap", Ct))).OfType<ApprovalCard>().Single();
+        await AgentHarness.CollectAsync(chat.RespondToApprovalAsync(card.RequestId, true, Ct));
+        var card2 = (await AgentHarness.CollectAsync(chat.SendAsync("and one about discounts", Ct))).OfType<ApprovalCard>().Single();
+        await AgentHarness.CollectAsync(chat.RespondToApprovalAsync(card2.RequestId, true, Ct));
+
+        Assert.Equal(2, await DbAsync(db => db.Tickets.CountAsync(t => t.ConversationId == chat.Session.ConversationId, Ct)));
+    }
+
+    [Fact]
     public async Task Escalation_creates_one_high_priority_ticket_and_marks_the_conversation()
     {
         var model = new ScriptedChatClient(

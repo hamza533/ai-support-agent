@@ -99,6 +99,7 @@ public static class AiServiceCollectionExtensions
     {
         AiProviders.Fake => new NotConfiguredChatClient("The AI provider is set to 'fake' (tests only)."),
         _ when !HasCredentials(options) => new NotConfiguredChatClient(MissingCredentialsMessage(options)),
+        AiProviders.GeminiOpenAiCompat => new GeminiOptionsChatClient(CreateOpenAiClient(options).GetChatClient(options.ChatModel).AsIChatClient()),
         _ => CreateOpenAiClient(options).GetChatClient(options.ChatModel).AsIChatClient(),
     };
 

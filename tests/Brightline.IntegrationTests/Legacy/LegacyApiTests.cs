@@ -50,6 +50,15 @@ public sealed class LegacyApiTests(LegacyApiFixture fixture) : IClassFixture<Leg
         Assert.Equal(9, (int)Math.Round((DateTimeOffset.UtcNow - maya.Delivery!.DeliveredAt!.Value).TotalDays));
         Assert.Contains(maya.Lines, l => l.Name == "Aurora Wireless Headphones" && l.UnitPrice == 149m);
         Assert.Contains(maya.Lines, l => l.Name == "USB-C Charger 65W" && l.UnitPrice == 39m);
+
+        // Eval scenarios S12/S25 use these; FakeLegacyOrdersClient mirrors them for unit tests.
+        var software = await db.Orders.Include(o => o.Lines).Include(o => o.Customer).SingleAsync(o => o.Number == LegacySeeder.DanielSoftwareOrder, Ct);
+        Assert.Equal(LegacySeeder.DanielEmail, software.Customer!.Email);
+        Assert.Equal(OrderStatus.Delivered, software.Status);
+        Assert.Equal("Software", Assert.Single(software.Lines).Category);
+        var shipped = await db.Orders.Include(o => o.Customer).SingleAsync(o => o.Number == LegacySeeder.DanielShippedOrder, Ct);
+        Assert.Equal(LegacySeeder.DanielEmail, shipped.Customer!.Email);
+        Assert.Equal(OrderStatus.Shipped, shipped.Status);
     }
 
     [Fact]

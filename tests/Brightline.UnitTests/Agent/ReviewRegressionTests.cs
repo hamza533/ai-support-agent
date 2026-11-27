@@ -158,3 +158,23 @@ public sealed class ReviewRegressionTests
         Assert.Equal(3, session.FailedVerifications);
     }
 }
+
+/// <summary>Findings from the first live eval run against Gemini.</summary>
+public sealed class LiveEvalRegressionTests
+{
+    private static CancellationToken Ct => TestContext.Current.CancellationToken;
+
+    [Fact]
+    public async Task Network_failures_after_all_retries_say_the_assistant_is_unavailable()
+    {
+        var harness = new AgentHarness();
+        var model = new ScriptedChatClient(_ => throw new AggregateException(
+            new HttpRequestException("Name or service not known (generativelanguage.googleapis.com:443)"),
+            new HttpRequestException("Name or service not known (generativelanguage.googleapis.com:443)")));
+        var chat = harness.CreateChat(model);
+
+        var error = Assert.Single((await AgentHarness.CollectAsync(chat.SendAsync("returns?", Ct))).OfType<ChatError>());
+
+        Assert.Equal(ChatErrorKinds.AiUnavailable, error.Kind);
+    }
+}

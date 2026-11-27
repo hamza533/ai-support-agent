@@ -141,3 +141,29 @@ public sealed class GeminiThoughtSignaturePolicyTests
         }
     }
 }
+
+/// <summary>Gemini's compatibility endpoint rejects seed and frequency_penalty; the AI.Evaluation judges send both.</summary>
+public sealed class GeminiOptionsChatClientTests
+{
+    [Fact]
+    public void Unsupported_options_are_dropped_on_a_copy()
+    {
+        var original = new ChatOptions { Seed = 0, FrequencyPenalty = 0, PresencePenalty = 0, Temperature = 0, MaxOutputTokens = 800 };
+
+        var sent = GeminiOptionsChatClient.Supported(original)!;
+
+        Assert.Null(sent.Seed);
+        Assert.Null(sent.FrequencyPenalty);
+        Assert.Equal(0f, sent.Temperature);
+        Assert.Equal(800, sent.MaxOutputTokens);
+        Assert.Equal(0, original.Seed); // the caller's options are untouched
+    }
+
+    [Fact]
+    public void Options_without_them_pass_through_as_is()
+    {
+        var options = new ChatOptions { Temperature = 0.2f };
+        Assert.Same(options, GeminiOptionsChatClient.Supported(options));
+        Assert.Null(GeminiOptionsChatClient.Supported(null));
+    }
+}
