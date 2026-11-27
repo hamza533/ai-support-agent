@@ -34,7 +34,7 @@ public static class EvalDefaults
         ["LegacyOrders:ApiKey"] = "dev-legacy-api-key-change-me",
         ["LegacyOrders:AdminKey"] = "dev-legacy-admin-key-change-me",
         ["Ai:MaxRequestsPerMinute"] = "10",
-        ["Eval:JudgeModel"] = "gemini-3.5-flash-lite",
+        ["Eval:JudgeModel"] = "gemini-3.1-flash-lite",
         ["Eval:JudgeMaxRequestsPerMinute"] = "12",
     };
 }

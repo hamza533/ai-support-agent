@@ -13,6 +13,8 @@ public sealed class LegacySeeder(LegacyDbContext db, TimeProvider time, ILogger<
     public const string MayaOldOrder = "BL-10317";
     public const string DanielEmail = "daniel.o@example.com";
     public const string DanielOrder = "BL-10555";
+    public const string DanielSoftwareOrder = "BL-10600";
+    public const string DanielShippedOrder = "BL-10611";
 
     private static readonly (string Sku, string Name, string Category, decimal Price)[] _catalog =
     [
@@ -82,7 +84,7 @@ public sealed class LegacySeeder(LegacyDbContext db, TimeProvider time, ILogger<
         var customers = BuildCustomers(rng, now);
         db.Customers.AddRange(customers);
 
-        var usedNumbers = new HashSet<string> { MayaOrder, MayaOldOrder, DanielOrder };
+        var usedNumbers = new HashSet<string> { MayaOrder, MayaOldOrder, DanielOrder, DanielSoftwareOrder, DanielShippedOrder };
 
         // The demo story, fixed.
         var maya = customers[0];
@@ -94,8 +96,12 @@ public sealed class LegacySeeder(LegacyDbContext db, TimeProvider time, ILogger<
         AddOrder(daniel, DanielOrder, now.AddDays(-8), OrderStatus.Delivered, now.AddDays(-4), rng,
             [Item("LAP-NOVA-14", 1), Item("ACC-SLEEVE-14", 1)]);
 
-        // ~147 random orders across all customers.
-        for (var i = 0; i < 147; i++)
+        // Used by eval scenarios (and mirrored in FakeLegacyOrdersClient): a never-returnable item and an order in transit.
+        AddOrder(daniel, DanielSoftwareOrder, now.AddDays(-5), OrderStatus.Delivered, now.AddDays(-3), rng, [Item("SFT-SHIELD-1Y", 1)]);
+        AddOrder(daniel, DanielShippedOrder, now.AddDays(-1), OrderStatus.Shipped, null, rng, [Item("WEA-STRIDE-W", 1)]);
+
+        // 145 random orders across all customers (150 in total).
+        for (var i = 0; i < 145; i++)
         {
             var customer = customers[rng.Next(customers.Count)];
             string number;

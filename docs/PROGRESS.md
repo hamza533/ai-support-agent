@@ -3,8 +3,8 @@
 ## Status
 - **Current milestone:** M9 – Final check
 - **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding; M5 customer Help Center + streaming chat (citations, verified chip, order card, confirmation cards, What I did, ticket offer, order-system-down state, cold-start message) with bUnit tests; M6 admin console (overview stats + chart, conversations with transcript/citations/agent trace/tokens/cost, tickets with drawer, documents + live ingestion jobs with retry, settings with admin-only save and locked approvals, staff users, Test as customer); M7 eval harness (40+8 questions with AI.Evaluation quality evaluators, 25 agent scenarios with DB + legacy-state assertions, performance metrics, results.md/json writer); M8 Playwright E2E (chat → verify → return with confirmation → staff sees ticket, real browser), demo mode (cap, nightly reset, read-only staff), render.yaml + Render/Neon guide, Azure Bicep (validated: build + lint), CI (e2e, images + Trivy, Bicep), disabled-by-default deploy workflow, README; M9 independent code review with fixes and regression tests (128 tests + E2E green)
-- **In progress:** `make eval` with a real key: blocked by the Gemini free-tier quota (20 requests/day per Flash model; a full run needs ~250–300). First live runs found and fixed two real bugs (Gemini 3 thought signatures, retired default model).
-- **Next:** run the full `make eval` once the Gemini project has a paid tier (or enough free quota), commit `eval/results.*`, fill the README Results table; deploy the demo; record GIF/video
+- **In progress:** – (all build work and the live eval are done; remaining items need the user: GitHub remote, Render/Neon deploy, GIF/video)
+- **Next:** deploy the demo (Render + Neon); record GIF/video; optional: make S07 say "eligible" before the confirmation card, smooth the eval throttle so p95 TTFT measures the model
 
 | # | Milestone | Status |
 |---|---|---|
@@ -15,20 +15,20 @@
 | M4 | Agent + tools | ✅ done |
 | M5 | Customer chat UI | ✅ done |
 | M6 | Admin console | ✅ done |
-| M7 | Evaluation | ✅ harness done · numbers need a Gemini key |
+| M7 | Evaluation | ✅ done – live run 2026-11-27 (Flash-Lite, free tier): groundedness 5.00, 24/25 scenarios, 100% verification/approvals, 0 leaks/duplicates |
 | M8 | End-to-end + demo + production profile | ✅ done |
-| M9 | Final check | ✅ done (independent review fixed; 128 tests + E2E green; fresh clone verified) · eval numbers pending key |
+| M9 | Final check | ✅ done (independent review + live-eval fixes; 138 tests + E2E green; fresh clone verified) |
 
 ## Acceptance checklist (SPEC section 9)
 - [x] `make setup && make dev` starts app, legacy API, Postgres and Aspire Dashboard; `make seed` loads documents and legacy data. *(Gemini key needed for live answers.)*
-- [ ] Policy questions answered with valid citations; unanswerable → "I don't know" + ticket offer. *Built and tested with a scripted model (bUnit + E2E); real-model numbers need `make eval` with a key.*
+- [x] Policy questions answered with valid citations; unanswerable → "I don't know" + ticket offer. *Live eval: citation validity 100%, "I don't know" 100%, ticket offered 100%.*
 - [x] Order tools refuse without verification; with order number + email, status / order list / eligibility are correct against the legacy API (unit + integration tests).
 - [x] `create_return_request` / `create_support_ticket` show a confirmation card and run only after Confirm; Cancel cancels; retries don't duplicate (unit, integration, bUnit, E2E).
 - [x] Legacy API reached only through the typed client over HTTP; architecture tests fail if the app references the legacy project or its connection string.
 - [x] Legacy API stopped → retries, circuit breaker, "can't reach the order system" + ticket offer (resilience unit tests + agent tests + scenario S21).
 - [x] Admin console shows conversations with tool calls, approvals and token usage; ingestion jobs visible and durable across restarts (Postgres jobs table, lease recovery test).
 - [x] Traces (agent steps, tool calls, LLM calls) exported via OTLP to the Aspire Dashboard (`Experimental.Microsoft.Agents.AI*`, `Microsoft.Extensions.AI*`, `Brightline.*` sources).
-- [ ] `make eval` reproduces README numbers with 100% verification, 100% approvals, 0 leaks, 0 duplicates. *Harness ready; needs a Gemini key to produce `eval/results.md`.*
+- [x] `make eval` reproduces README numbers with 100% verification, 100% approvals, 0 leaks, 0 duplicates (`eval/results.md`, 2026-11-27). 24/25 scenarios: S07 shows the confirmation card without saying "eligible" in text.
 - [x] `Ai:Provider` switch between `gemini-openai-compat` and `azure-openai` needs no code change (configuration test).
 - [x] Production readiness: EF migrations · Data Protection keys in DB · rate limiting · `/health` + `/ready` · security headers/CSP · Key Vault in production (Bicep) · optional Entra ID · Playwright E2E · Dependabot, CodeQL, Trivy · Bicep validated in CI with a disabled deploy workflow · README production section with 1k/10k cost estimate.
 - [~] UI matches `docs/ui/`: built from `docs/ui/STITCH_PROMPT.md` (all 7 screens, same story data) with NeoUI.Blazor; exported Stitch images not available to compare.
@@ -36,18 +36,18 @@
 - [x] `AGENTS.md` Gotchas cover verification, approvals, legacy boundary, Gemini compat + provider switch, pgvector dimension, WebSockets/sticky sessions, Data Protection keys, Render cold starts.
 
 ## Done checklist (CONVENTIONS section 8)
-- [ ] Every SPEC acceptance criterion passes – two items wait on a Gemini key (eval numbers).
+- [x] Every SPEC acceptance criterion passes (UI compared against the Stitch brief, not exported images – see `[~]` above).
 - [x] Production readiness (CONVENTIONS 10): met or covered; `deploy/azure/` Bicep validates (build + lint) in CI.
 - [x] Handoff: `AGENTS.md`, `CLAUDE.md` (`@AGENTS.md`), Makefile targets, up-to-date PROGRESS; fresh clone `make setup && make check` green (verified in the toolbox container).
 - [x] `docker compose up` works on a clean machine (verified with a fresh volume).
-- [ ] Evaluation numbers in README – needs a Gemini key.
+- [x] Evaluation numbers in README (from `eval/results.md`).
 - [ ] CI green – needs a GitHub remote (workflows are in place).
 - [ ] Demo GIF + 60–90 s video – user records.
 - [ ] Live demo deployed – user creates Neon + Render (guide: docs/deploy-render-neon.md).
-- [ ] Upwork case study – after eval numbers.
+- [ ] Upwork case study – eval numbers are ready.
 
 ## What the user does
-1. Add `Ai__Gemini__ApiKey` to `.env`, run `make dev` then `make eval`; commit `eval/results.md` + `.json` and copy the summary into the README Results table.
+1. ~~Gemini key + `make eval`~~ – done 2026-11-27. Re-run `make eval` after prompt or model changes and commit `eval/results.*`.
 2. Push to GitHub (enables CI, CodeQL, Dependabot).
 3. Create Neon databases + Render services (docs/deploy-render-neon.md); add the demo link and demo staff credentials to the README.
 4. Record the demo GIF (`docs/images/demo.gif`) and a 60–90 s video.
@@ -59,7 +59,7 @@
   (`01-help-center.png` … `07-settings.png`, chat states `02a`–`02d`). Until then the UI follows
   `docs/ui/STITCH_PROMPT.md` with NeoUI defaults.
 - **Gemini API key** needed for live chat and for `make eval` numbers (`Ai__Gemini__ApiKey` in `.env`). All automated tests run without it. Without a key the app starts, indexes documents for keyword search only, and the chat explains that the assistant isn't configured.
-- **Gemini free-tier quota:** 20 requests/day per model on `gemini-3.6-flash` (checked 2026-11-27). Too small for the full eval (~250–300 calls) and for the public demo (~5 conversations/day). Enabling billing on the AI Studio project (Tier 1) lifts it; a full eval run is roughly 1.5–2M tokens (see current Flash pricing).
+- **Gemini free-tier quota:** `gemini-3.6-flash` allows only 20 requests/day per project (checked 2026-11-27), so the defaults are Flash-Lite (`gemini-3.5-flash-lite` agent, `gemini-3.1-flash-lite` judge), which completed two full eval runs the same day without a 429. A public demo on the free tier can still run out on a busy day. Enabling billing on the AI Studio project (Tier 1) lifts it; a full eval run is roughly 1.5–2M tokens (see current Flash pricing).
 - **No git remote yet:** milestones are merged locally with `--no-ff`. Add a GitHub remote to get CI, CodeQL and Dependabot running.
 - **Local toolchain:** the .NET SDK and `make` are not installed on the dev machine; everything runs in the
   `docker/dev.Dockerfile` toolbox via `scripts/dev.ps1` / `scripts/dev.sh` (see "How to verify").
@@ -96,3 +96,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 - 2026-11-27 – Claude Code – M8: E2E (Playwright, scripted model, screenshots), demo mode services, render.yaml + docs/deploy-render-neon.md, deploy/azure Bicep + CI validation, deploy workflow, README; fixed admin transcript HTML rendering and empty usage messages.
 - 2026-11-27 – Claude Code – M9: independent security/correctness review; fixed parallel-call approvals, outage cards, citation stability, line-keyed idempotency + legacy row lock, job-queue poison/lease/fencing, verification oracle, ticket order ownership, link allow-list, admin hardening; regression tests; fresh-clone `make setup && make check` verified.
 - 2026-11-27 – Claude Code – First live eval: fixed Gemini 3 tool calls (thought signatures echoed back via GeminiThoughtSignaturePolicy, DECISIONS 54) and the retired default chat model (now gemini-3.6-flash); 133 tests green. Full eval blocked by the free-tier daily quota.
+- 2026-11-27 – Claude Code – Full live eval on Flash-Lite: fixed judge options Gemini rejects (seed, frequency_penalty), ticket idempotency keyed on category + verified order (S19 duplicate), seeded BL-10600/BL-10611 in the real legacy seed (S12/S25), AggregateException → "assistant unavailable"; defaults moved to Flash-Lite; README Results filled in; 138 tests green.

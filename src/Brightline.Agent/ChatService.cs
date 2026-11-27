@@ -305,7 +305,10 @@ public sealed class ChatService(
     private ChatError MapError(Exception ex)
     {
         _logger.LogError(ex, "Chat turn failed for conversation {ConversationId}", Session.ConversationId);
-        return ex switch
+
+        // The SDK retry policy throws AggregateException(attempt errors) once retries run out: classify by the last attempt.
+        var cause = ex is AggregateException { InnerExceptions.Count: > 0 } agg ? agg.Flatten().InnerExceptions[^1] : ex;
+        return cause switch
         {
             AiNotConfiguredException => new ChatError(ChatErrorKinds.AiUnavailable, "The assistant isn't configured yet (no AI provider key). Please contact support."),
             ClientResultException { Status: 429 } => new ChatError(ChatErrorKinds.AiUnavailable, "The assistant is very busy right now. Please try again in a minute."),
