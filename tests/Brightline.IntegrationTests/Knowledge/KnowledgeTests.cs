@@ -19,6 +19,9 @@ public sealed class KnowledgeFixture(PostgresFixture postgres) : IAsyncLifetime
 
     public AppFactory Factory { get; private set; } = null!;
 
+    /// <summary>The sources right after first start, before other tests upload or re-index (tests share this fixture).</summary>
+    public IReadOnlyList<Source> InitialSources { get; private set; } = [];
+
     public async ValueTask InitializeAsync()
     {
         Factory = new AppFactory(
@@ -26,6 +29,7 @@ public sealed class KnowledgeFixture(PostgresFixture postgres) : IAsyncLifetime
             services => services.AddSingleton<IEmbeddingGenerator<string, Embedding<float>>>(Embeddings));
         _ = Factory.Server; // migrates and seeds the sample documents (jobs queued)
         await RunJobsAsync();
+        InitialSources = await WithScopeAsync(sp => sp.GetRequiredService<AppDbContext>().Sources.AsNoTracking().ToListAsync());
     }
 
     public async ValueTask DisposeAsync() => await Factory.DisposeAsync();
@@ -58,9 +62,9 @@ public sealed class KnowledgeTests(KnowledgeFixture fixture) : IClassFixture<Kno
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
 
     [Fact]
-    public async Task Sample_help_centre_documents_are_ingested_on_first_start()
+    public void Sample_help_centre_documents_are_ingested_on_first_start()
     {
-        var sources = await fixture.WithScopeAsync(sp => sp.GetRequiredService<AppDbContext>().Sources.AsNoTracking().ToListAsync(Ct));
+        var sources = fixture.InitialSources;
 
         Assert.True(sources.Count >= 10, $"expected the sample docs, got {sources.Count}");
         Assert.All(sources, s =>
