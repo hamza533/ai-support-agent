@@ -52,6 +52,7 @@ public sealed class ScenarioRunner(IServiceProvider sp, IConfiguration config)
 
         async Task ConsumeAsync(IAsyncEnumerable<ChatEvent> events)
         {
+            var queuedBefore = ModelLatency.Queued(scope.ServiceProvider);
             await foreach (var e in events)
             {
                 switch (e)
@@ -59,7 +60,7 @@ public sealed class ScenarioRunner(IServiceProvider sp, IConfiguration config)
                     case AssistantMessage m:
                         transcript.Add("assistant: " + m.Text);
                         visible.Add(m.Text);
-                        if (m.TtftMs is { } t)
+                        if (ModelLatency.Exclude(m.TtftMs, queuedBefore, ModelLatency.Queued(scope.ServiceProvider)) is { } t)
                         {
                             ttfts.Add(t);
                         }

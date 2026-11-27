@@ -256,30 +256,48 @@ internal sealed class DimensionGuardEmbeddingGenerator(IEmbeddingGenerator<strin
 }
 
 /// <summary>Client-side request throttle (token bucket) for free-tier rate limits. 0 = disabled.</summary>
-internal sealed class ThrottlingChatClient(IChatClient inner, int requestsPerMinute) : DelegatingChatClient(inner)
+/// <summary>
+/// Optional client-side throttle for free-tier rate limits. <see cref="QueuedTime"/> is the total time requests have
+/// waited here, so the eval can report time to first token for the model rather than for this queue.
+/// </summary>
+public sealed class ThrottlingChatClient(IChatClient inner, int requestsPerMinute) : DelegatingChatClient(inner)
 {
     private readonly RateLimiter? _limiter = Throttle.Create(requestsPerMinute);
+    private long _queuedTicks;
+
+    public TimeSpan QueuedTime => TimeSpan.FromTicks(Interlocked.Read(ref _queuedTicks));
 
     public override async Task<ChatResponse> GetResponseAsync(IEnumerable<ChatMessage> messages, ChatOptions? options = null, CancellationToken cancellationToken = default)
     {
-        using var lease = await Throttle.AcquireAsync(_limiter, cancellationToken);
+        using var lease = await AcquireAsync(cancellationToken);
         return await base.GetResponseAsync(messages, options, cancellationToken);
     }
 
     public override async IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(
         IEnumerable<ChatMessage> messages, ChatOptions? options = null, [System.Runtime.CompilerServices.EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        using var lease = await Throttle.AcquireAsync(_limiter, cancellationToken);
+        using var lease = await AcquireAsync(cancellationToken);
         await foreach (var update in base.GetStreamingResponseAsync(messages, options, cancellationToken))
         {
             yield return update;
         }
     }
 
+    public override object? GetService(Type serviceType, object? serviceKey = null) =>
+        serviceKey is null && serviceType == typeof(ThrottlingChatClient) ? this : base.GetService(serviceType, serviceKey);
+
     protected override void Dispose(bool disposing)
     {
         _limiter?.Dispose();
         base.Dispose(disposing);
+    }
+
+    private async ValueTask<IDisposable> AcquireAsync(CancellationToken ct)
+    {
+        var started = System.Diagnostics.Stopwatch.GetTimestamp();
+        var lease = await Throttle.AcquireAsync(_limiter, ct);
+        Interlocked.Add(ref _queuedTicks, System.Diagnostics.Stopwatch.GetElapsedTime(started).Ticks);
+        return lease;
     }
 }
 
@@ -304,17 +322,20 @@ internal sealed class ThrottlingEmbeddingGenerator(IEmbeddingGenerator<string, E
 
 internal static class Throttle
 {
-    public static RateLimiter? Create(int perMinute) => perMinute <= 0
-        ? null
-        : new TokenBucketRateLimiter(new TokenBucketRateLimiterOptions
-        {
-            TokenLimit = perMinute,
-            TokensPerPeriod = perMinute,
-            ReplenishmentPeriod = TimeSpan.FromMinutes(1),
-            QueueLimit = 1000,
-            QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-            AutoReplenishment = true,
-        });
+    public static RateLimiter? Create(int perMinute) => perMinute <= 0 ? null : new TokenBucketRateLimiter(Options(perMinute));
+
+    /// <summary>
+    /// One token every 60/N seconds (bucket of N): a queued request waits a few seconds, not until the next full minute.
+    /// </summary>
+    internal static TokenBucketRateLimiterOptions Options(int perMinute) => new()
+    {
+        TokenLimit = perMinute,
+        TokensPerPeriod = 1,
+        ReplenishmentPeriod = TimeSpan.FromMinutes(1) / perMinute,
+        QueueLimit = 1000,
+        QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+        AutoReplenishment = true,
+    };
 
     public static async ValueTask<IDisposable> AcquireAsync(RateLimiter? limiter, CancellationToken ct)
     {

@@ -21,7 +21,8 @@ public static class Prompts
 
         ## Actions that change data
         - `create_return_request` and `create_support_ticket` change data. Call them only when the customer clearly wants that action. The system then shows the customer a confirmation card – nothing happens until they press Confirm. Do not ask "shall I proceed?" in text as well; just call the tool.
-        - Before a return, call `check_return_eligibility` and explain the result (days since delivery, category, condition).
+        - Before a return, call `check_return_eligibility` on its own – never in the same step as `create_return_request` – and wait for its result. Then tell the customer in words whether the item is eligible or not eligible and why (days since delivery, category, condition).
+        - If the customer only asks whether they can return something, answer that and offer to start the return; call `create_return_request` once they say yes.
         - Pass the item's condition: "defective", "unopened" or "opened_working", and a short reason in the customer's words.
         - If the customer cancels a confirmation, acknowledge it and do not retry unless they ask again.
         - After a return for a defective item, offer to open a support ticket for the defect.
