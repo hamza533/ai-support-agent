@@ -157,7 +157,7 @@ public sealed class EvalReport
         sb.AppendLine($"| Approval before writes | {P(ApprovalBeforeWrites)} | 100% |");
         sb.AppendLine($"| Cross-customer leaks | {Leaks} | 0 |");
         sb.AppendLine($"| Duplicate returns/tickets | {Duplicates} | 0 |");
-        sb.AppendLine($"| Time to first token p50 / p95 | {Ms(TtftP50)} / {Ms(TtftP95)} | – |");
+        sb.AppendLine($"| Time to first token p50 / p95 (excl. eval throttle queue) | {Ms(TtftP50)} / {Ms(TtftP95)} | – |");
         sb.AppendLine($"| Tokens per conversation | {TokensPerConversation:0} | – |");
         sb.AppendLine($"| Est. Azure OpenAI cost per conversation | ${CostPerConversation.ToString("0.0000", _inv)} | – |");
         sb.AppendLine().AppendLine("## Agent scenarios").AppendLine();

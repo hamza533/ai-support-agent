@@ -5,6 +5,7 @@ using Brightline.Data.Jobs;
 using Brightline.Knowledge.Ingestion;
 using Brightline.LegacyOrders.Client;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.AI;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -150,4 +151,17 @@ public static class KnowledgeIndex
             pending = await check.ServiceProvider.GetRequiredService<AppDbContext>().Sources.CountAsync(s => s.Status == SourceStatus.Processing);
         }
     }
+}
+
+/// <summary>
+/// The eval throttles model calls for free-tier limits. Time spent queued there is not model latency, so it is
+/// subtracted from time to first token (turns run one at a time, so the queue delta belongs to that turn).
+/// </summary>
+internal static class ModelLatency
+{
+    public static TimeSpan Queued(IServiceProvider sp) =>
+        sp.GetService<IChatClient>()?.GetService<ThrottlingChatClient>()?.QueuedTime ?? TimeSpan.Zero;
+
+    public static int? Exclude(int? ttftMs, TimeSpan queuedBefore, TimeSpan queuedAfter) =>
+        ttftMs is { } t ? Math.Max(0, t - (int)(queuedAfter - queuedBefore).TotalMilliseconds) : null;
 }

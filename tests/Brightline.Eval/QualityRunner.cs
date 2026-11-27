@@ -113,6 +113,7 @@ public sealed class QualityRunner
         chat.Session.IsTest = true;
         AssistantMessage? last = null;
         string? error = null;
+        var queuedBefore = ModelLatency.Queued(scope.ServiceProvider);
         await foreach (var e in chat.SendAsync(question))
         {
             switch (e)
@@ -126,6 +127,7 @@ public sealed class QualityRunner
             }
         }
 
+        last = last is null ? null : last with { TtftMs = ModelLatency.Exclude(last.TtftMs, queuedBefore, ModelLatency.Queued(scope.ServiceProvider)) };
         return (last?.Text ?? string.Empty, last, error);
     }
 
