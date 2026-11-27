@@ -25,3 +25,8 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   approvals, access), "Test as customer"; role checks (staff read, admin change).
 - M7 evaluation harness (`make eval`): AI.Evaluation groundedness/relevance/completeness on 40 questions, "I don't know"
   on 8 unanswerable, 25 agent scenarios with database and legacy-API state assertions, TTFT/tokens/cost, results.md/json.
+- M8 Playwright end-to-end test (real browser, both apps on Kestrel, scripted model) + README screenshots; demo mode
+  (daily cap, nightly legacy reset, read-only demo staff); `render.yaml` + Render/Neon guide; Azure Bicep production
+  profile validated in CI; disabled-by-default deploy workflow; full README.
+### Fixed
+- Admin transcript rendered escaped HTML for assistant messages; tool-only turns no longer store empty messages.

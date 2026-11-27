@@ -12,6 +12,7 @@
 @inject IServiceScopeFactory Scopes
 @inject IOptions<KnowledgeOptions> KnowledgeOptions
 @inject IToastService Toasts
+@inject IOptions<Brightline.Agent.DemoOptions> Demo
 
 <PageTitle>Documents · Brightline Admin</PageTitle>
 
@@ -25,7 +26,14 @@
                     <LucideIcon Name="upload" Size="22" />
                     <strong>Upload help-centre documents</strong>
                     <span class="small muted">PDF, DOCX or Markdown · up to @(KnowledgeOptions.Value.MaxUploadBytes / 1024 / 1024) MB · checked by file content</span>
-                    <InputFile OnChange="UploadAsync" multiple accept=".pdf,.docx,.md,.markdown" disabled="@_uploading" aria-label="Choose files to upload" />
+                    @if (ReadOnlyDemo)
+                    {
+                        <span class="small muted">Uploads are disabled in the public demo.</span>
+                    }
+                    else
+                    {
+                        <InputFile OnChange="UploadAsync" multiple accept=".pdf,.docx,.md,.markdown" disabled="@_uploading" aria-label="Choose files to upload" />
+                    }
                     @if (_uploading) { <Spinner Size="SpinnerSize.Small" /> }
                 </div>
                 @foreach (var error in _uploadErrors)
@@ -61,7 +69,7 @@
                                     <td class="small muted">@Ago(d.UpdatedAt)</td>
                                     <td>
                                         <div class="row">
-                                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => ReindexAsync(d)">Re-index</Button>
+                                            <Button Size="ButtonSize.Small" Variant="ButtonVariant.Outline" OnClick="() => ReindexAsync(d)" Disabled="ReadOnlyDemo">Re-index</Button>
                                             @if (IsAdmin)
                                             {
                                                 <Button Size="ButtonSize.Small" Variant="ButtonVariant.Ghost" OnClick="() => DeleteAsync(d)" AriaLabel="@($"Delete {d.Title}")"><LucideIcon Name="trash-2" Size="14" /></Button>
@@ -110,6 +118,9 @@
     private bool _uploading;
     private Timer? _timer;
 
+    /// <summary>Public demo: staff can look but not change the knowledge base.</summary>
+    private bool ReadOnlyDemo => Demo.Value.Enabled && !IsAdmin;
+
     protected override async Task LoadAsync()
     {
         await RefreshAsync();
@@ -131,6 +142,11 @@
 
     private async Task UploadAsync(InputFileChangeEventArgs e)
     {
+        if (ReadOnlyDemo)
+        {
+            return;
+        }
+
         _uploading = true;
         _uploadErrors.Clear();
         var max = KnowledgeOptions.Value.MaxUploadBytes;
@@ -162,6 +178,11 @@
 
     private async Task ReindexAsync(Source d)
     {
+        if (ReadOnlyDemo)
+        {
+            return;
+        }
+
         await using var scope = Scopes.CreateAsyncScope();
         await scope.ServiceProvider.GetRequiredService<KnowledgeService>().ReindexAsync(d.Id);
         Toasts.Info($"Re-indexing {d.Title}", "The current version stays searchable until the new one is ready.");

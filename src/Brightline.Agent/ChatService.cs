@@ -214,7 +214,11 @@ public sealed class ChatService(
         var tokensIn = usage.InputTokenCount ?? 0;
         var tokensOut = usage.OutputTokenCount ?? 0;
         var raw = text.ToString().Trim();
-        if (raw.Length > 0 || tokensIn + tokensOut > 0)
+        if (raw.Length == 0 && tokensIn + tokensOut > 0)
+        {
+            await store.AddUsageAsync(Session, tokensIn, tokensOut, aiOptions.Value.ChatModel, CancellationToken.None);
+        }
+        else if (raw.Length > 0)
         {
             var (clean, cited) = CitationProcessor.Process(raw, Session.Citations);
             var (markers, validMarkers) = CitationProcessor.Count(raw, Session.Citations);

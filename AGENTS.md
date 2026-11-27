@@ -8,7 +8,10 @@ Full requirements: docs/SPEC.md. Shared rules: docs/CONVENTIONS.md (the .NET ove
 2. Read docs/SPEC.md, docs/architecture.md and docs/DECISIONS.md before changing the stack.
 
 ## Commands
-make setup | make dev | make test | make lint | make check | make eval | make seed
+make setup | make dev | make test | make lint | make check | make eval | make seed | make e2e | make create-admin EMAIL=…
+
+- `make eval` needs the stack (`make dev`) and `Ai__Gemini__ApiKey` in `.env`; it writes `eval/results.md` + `.json` (commit them).
+- `make e2e` hosts both apps on real ports with a scripted model and drives Chromium (Playwright installs it on first run).
 
 No local .NET 10 SDK or make? Run the same targets in the dev toolbox container:
 `./scripts/dev.sh make setup check` (bash) or `./scripts/dev.ps1 make setup check` (PowerShell).
@@ -33,7 +36,7 @@ No local .NET 10 SDK or make? Run the same targets in the dev toolbox container:
 ## MCP servers
 | Server | Why | Claude Code | Cursor / Codex / Antigravity |
 |---|---|---|---|
-| neon (deploy step only) | manage the demo DB | `claude mcp add --transport http neon https://mcp.neon.tech/mcp` then `/mcp` to log in | add URL `https://mcp.neon.tech/mcp` in the tool's MCP settings |
+| neon (deploy step only, read-only) | inspect the demo DB on Neon | `claude mcp add --transport http neon https://mcp.neon.tech/mcp` then `/mcp` to log in | add URL `https://mcp.neon.tech/mcp` in the tool's MCP settings |
 
 shadcn's MCP targets React, so it isn't used here (UI is NeoUI.Blazor).
 
@@ -46,4 +49,7 @@ shadcn's MCP targets React, so it isn't used here (UI is NeoUI.Blazor).
 - **Blazor Server needs WebSockets and sticky sessions** behind load balancers (Container Apps: session affinity on).
 - **Data Protection keys** are stored in the app database so Identity cookies and antiforgery tokens work across instances and restarts.
 - **Render cold starts:** the free plan sleeps; the UI shows a "waking up the demo server" message.
-- **Migrations** run on startup only in docker compose (`Database__MigrateOnStartup=true`); production runs them as a deploy step.
+- **Migrations** run on startup only in docker compose and the free Render demo (`Database__MigrateOnStartup=true`); production runs them as a deploy job (`brightline-migrate` in deploy/azure).
+- **NeoUI components don't accept arbitrary HTML attributes** (`style`, `data-testid` on `CardContent`, `Alert`…): put them on a wrapping element or use `Class`. Unknown attributes crash the circuit at render time.
+- **No inline scripts** (CSP `script-src 'self'`): put JS in `wwwroot/js/app.js`; `<ImportMap />` is intentionally not used.
+- **Tests that host the app outside Development** need `UseStaticWebAssets()` for `_content/` package assets (see E2E tests).

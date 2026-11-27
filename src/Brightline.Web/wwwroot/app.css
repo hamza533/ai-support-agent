@@ -213,3 +213,4 @@ textarea.code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, mono
 .pt { padding-top: 16px; }
 .pt-lg { padding-top: 20px; }
 .pt-xl { padding-top: 24px; }
+.bubble.md { white-space: normal; }
