@@ -18,7 +18,7 @@ jobs:
     name: Build, format, test
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -40,7 +40,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: build-test
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
@@ -60,7 +60,7 @@ jobs:
       matrix:
         image: [web, legacyorders]
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build image
         run: docker build -f docker/${{ matrix.image }}.Dockerfile -t brightline-${{ matrix.image }}:ci .
       - name: Scan image (Trivy)
@@ -75,7 +75,7 @@ jobs:
     name: Validate Azure Bicep
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
       - name: Build and lint deploy/azure
         run: |
           az bicep install
