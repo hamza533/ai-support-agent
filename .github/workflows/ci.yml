@@ -64,7 +64,7 @@ jobs:
       - name: Build image
         run: docker build -f docker/${{ matrix.image }}.Dockerfile -t brightline-${{ matrix.image }}:ci .
       - name: Scan image (Trivy)
-        uses: aquasecurity/trivy-action@0.33.1
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: brightline-${{ matrix.image }}:ci
           severity: CRITICAL,HIGH
