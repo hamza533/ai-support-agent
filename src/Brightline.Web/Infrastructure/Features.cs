@@ -18,6 +18,7 @@ public static class Features
         services.AddScoped<KnowledgeSeeder>();
         services.AddScoped<ISeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());
         services.AddScoped<IStartupSeeder>(sp => sp.GetRequiredService<KnowledgeSeeder>());
+        services.AddBrightlineDemoMode(configuration);
         return services;
     }
 

@@ -42,6 +42,14 @@ public sealed class InMemoryConversationStore : IConversationStore
         return Task.CompletedTask;
     }
 
+    public long TokensIn { get; private set; }
+
+    public Task AddUsageAsync(ConversationSession session, long tokensIn, long tokensOut, string? model, CancellationToken ct = default)
+    {
+        TokensIn += tokensIn;
+        return Task.CompletedTask;
+    }
+
     public Task SetStatusAsync(Guid conversationId, ConversationStatus status, CancellationToken ct = default)
     {
         Status = status;

@@ -4,7 +4,7 @@ SLN := Brightline.slnx
 CONFIG ?= Release
 DOTNET ?= dotnet
 
-.PHONY: setup build test test-unit test-integration lint format check dev down seed eval migrate create-admin e2e clean
+.PHONY: screenshots setup build test test-unit test-integration lint format check dev down seed eval migrate create-admin e2e clean
 
 setup: ## Restore packages and local tools
 	$(DOTNET) tool restore
@@ -14,7 +14,7 @@ build: ## Build with warnings as errors
 	$(DOTNET) build $(SLN) -c $(CONFIG) --no-restore
 
 test: ## Run all automated tests (unit, integration, component)
-	$(DOTNET) test --solution $(SLN) -c $(CONFIG) --no-build -- --filter-not-trait "Category=E2E" --filter-not-trait "Category=Eval"
+	$(DOTNET) test --solution $(SLN) -c $(CONFIG) --no-build -- --filter-not-trait "Category=E2E" --filter-not-trait "Category=Eval" --ignore-exit-code 8
 
 test-unit:
 	$(DOTNET) test --project tests/Brightline.UnitTests -c $(CONFIG)
@@ -33,14 +33,22 @@ dev: ## Start app, legacy API, Postgres and Aspire Dashboard
 down:
 	docker compose down
 
-seed: ## Load help-centre documents and reset legacy data
+seed: ## Load help-centre documents and legacy sample data
+	docker compose run --rm legacy-api --migrate --seed
 	docker compose run --rm web --seed
 
 eval: ## Run the evaluation suite, writes eval/results.md and eval/results.json
 	$(DOTNET) run --project tests/Brightline.Eval -c $(CONFIG)
 
-e2e: ## Playwright end-to-end tests (needs the stack running: make dev)
-	$(DOTNET) test --project tests/Brightline.E2ETests -c $(CONFIG)
+E2E_BIN := tests/Brightline.E2ETests/bin/$(CONFIG)/net10.0
+
+e2e: ## Playwright end-to-end test: chat -> verify -> return with confirmation -> staff sees ticket (installs Chromium once)
+	$(DOTNET) build tests/Brightline.E2ETests -c $(CONFIG)
+	$(E2E_BIN)/.playwright/node/linux-x64/node $(E2E_BIN)/.playwright/package/cli.js install --with-deps chromium
+	$(DOTNET) test --project tests/Brightline.E2ETests -c $(CONFIG) --no-build
+
+screenshots: ## Re-generate docs/images/*.png from the end-to-end story
+	E2E_SCREENSHOTS=1 $(MAKE) e2e
 
 migrate: ## Apply EF migrations for both databases
 	docker compose run --rm web --migrate

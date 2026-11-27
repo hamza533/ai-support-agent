@@ -1,0 +1,67 @@
+# Render Blueprint for the public demo (free plan, two Docker web services + Neon Postgres).
+# Guide: docs/deploy-render-neon.md. Secrets marked `sync: false` are entered in the Render dashboard.
+envVarGroups:
+  - name: brightline-shared
+    envVars:
+      - key: LegacyOrders__ApiKey
+        generateValue: true
+      - key: LegacyOrders__AdminKey
+        generateValue: true
+
+services:
+  - type: web
+    name: brightline-legacy-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/legacyorders.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - fromGroup: brightline-shared
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__LegacyOrders
+        sync: false # Neon connection string for the brightline_legacy database
+      # Free plan has no pre-deploy step: the demo migrates + seeds on start-up. Production uses a migration job.
+      - key: LegacyOrders__MigrateOnStartup
+        value: "true"
+
+  - type: web
+    name: brightline-web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./docker/web.Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeploy: false
+    envVars:
+      - fromGroup: brightline-shared
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ConnectionStrings__App
+        sync: false # Neon connection string for the brightline_app database (pgvector enabled)
+      - key: LegacyOrders__BaseUrl
+        sync: false # e.g. https://brightline-legacy-api.onrender.com
+      - key: Ai__Provider
+        value: gemini-openai-compat
+      - key: Ai__Gemini__ApiKey
+        sync: false
+      - key: Ai__MaxRequestsPerMinute
+        value: "10"
+      - key: Database__MigrateOnStartup
+        value: "true"
+      - key: Worker__Mode
+        value: embedded # the free plan has no background workers
+      - key: Demo__Enabled
+        value: "true"
+      - key: Demo__DailyConversations
+        value: "40"
+      - key: Demo__StaffEmail
+        value: demo.staff@brightline.example
+      - key: Demo__StaffPassword
+        sync: false # published in the README for the read-only demo account
+      - key: RateLimit__ChatPerMinute
+        value: "10"
+      - key: Security__HttpsRedirection
+        value: "false" # Render terminates TLS at its proxy

@@ -28,6 +28,9 @@ public interface IConversationStore
     Task RecordToolCallAsync(ConversationSession session, ToolCallRecord record, CancellationToken ct = default);
 
     Task SetStatusAsync(Guid conversationId, ConversationStatus status, CancellationToken ct = default);
+
+    /// <summary>Adds token usage for a turn that produced no visible text (e.g. it ended at a confirmation card).</summary>
+    Task AddUsageAsync(ConversationSession session, long tokensIn, long tokensOut, string? model, CancellationToken ct = default);
 }
 
 /// <summary>Persists conversations, messages and tool calls (short-lived contexts: safe for long Blazor circuits).</summary>
@@ -123,6 +126,16 @@ public sealed class ConversationStore(IDbContextFactory<AppDbContext> dbFactory,
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    public async Task AddUsageAsync(ConversationSession session, long tokensIn, long tokensOut, string? model, CancellationToken ct = default)
+    {
+        await EnsurePersistedAsync(session, ct);
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        await db.Conversations.Where(c => c.Id == session.ConversationId).ExecuteUpdateAsync(s => s
+            .SetProperty(c => c.TokensIn, c => c.TokensIn + tokensIn)
+            .SetProperty(c => c.TokensOut, c => c.TokensOut + tokensOut)
+            .SetProperty(c => c.Model, c => model ?? c.Model), ct);
     }
 
     public async Task SetStatusAsync(Guid conversationId, ConversationStatus status, CancellationToken ct = default)

@@ -49,6 +49,7 @@ services:
       ConnectionStrings__App: Host=postgres;Database=brightline_app;Username=${POSTGRES_USER:-brightline};Password=${POSTGRES_PASSWORD:-brightline-dev-only}
       LegacyOrders__BaseUrl: http://legacy-api:8080
       LegacyOrders__ApiKey: ${LegacyOrders__ApiKey:-dev-legacy-api-key-change-me}
+      LegacyOrders__AdminKey: ${LegacyOrders__AdminKey:-dev-legacy-admin-key-change-me}
       Database__MigrateOnStartup: "true"
       Worker__Mode: embedded
       OTEL_EXPORTER_OTLP_ENDPOINT: http://aspire-dashboard:18889

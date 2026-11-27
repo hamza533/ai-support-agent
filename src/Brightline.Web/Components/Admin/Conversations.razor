@@ -91,7 +91,14 @@
                     <div class="msg @(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? "user" : "assistant")">
                         @if (m.Message.Role != Brightline.Data.Entities.MessageRole.User) { <span class="avatar-bot" aria-hidden="true">B</span> }
                         <div class="grow" style="@(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? "display:flex;justify-content:flex-end" : null)">
-                            <div class="bubble">@(m.Message.Role == Brightline.Data.Entities.MessageRole.User ? m.Message.Text : SafeMarkdown.Render(m.Message.Text, m.Citations))</div>
+                            @if (m.Message.Role == Brightline.Data.Entities.MessageRole.User)
+                            {
+                                <div class="bubble">@m.Message.Text</div>
+                            }
+                            else
+                            {
+                                <div class="bubble md">@SafeMarkdown.Render(m.Message.Text, m.Citations)</div>
+                            }
                             @if (m.Citations.Count > 0)
                             {
                                 <div class="sources">

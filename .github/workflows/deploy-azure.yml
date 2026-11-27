@@ -1,0 +1,60 @@
+name: Deploy to Azure (production profile)
+
+# Disabled by default: runs only on a release tag AND when the repository variable AZURE_DEPLOY_ENABLED is 'true'.
+# Needs: OIDC federated credential for the deploy identity (AZURE_CLIENT_ID, AZURE_TENANT_ID, AZURE_SUBSCRIPTION_ID),
+# AZURE_RESOURCE_GROUP, and secrets POSTGRES_ADMIN_PASSWORD and LEGACY_API_KEY.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+  packages: write
+
+jobs:
+  deploy:
+    if: vars.AZURE_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    environment: production
+    env:
+      VERSION: ${{ github.ref_name }}
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push images (tagged by version)
+        run: |
+          docker build -f docker/web.Dockerfile -t $REGISTRY/brightline-web:$VERSION .
+          docker build -f docker/legacyorders.Dockerfile -t $REGISTRY/brightline-legacyorders:$VERSION .
+          docker push $REGISTRY/brightline-web:$VERSION
+          docker push $REGISTRY/brightline-legacyorders:$VERSION
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy infrastructure + apps
+        env:
+          POSTGRES_ADMIN_PASSWORD: ${{ secrets.POSTGRES_ADMIN_PASSWORD }}
+          LEGACY_API_KEY: ${{ secrets.LEGACY_API_KEY }}
+        run: |
+          az deployment group create \
+            --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}" \
+            --template-file deploy/azure/main.bicep \
+            --parameters webImage=$REGISTRY/brightline-web:$VERSION legacyImage=$REGISTRY/brightline-legacyorders:$VERSION \
+                         postgresAdminPassword="$POSTGRES_ADMIN_PASSWORD" legacyApiKey="$LEGACY_API_KEY"
+
+      - name: Run database migrations (deploy step, not at app start-up)
+        run: |
+          az containerapp job start --name brightline-migrate --resource-group "${{ vars.AZURE_RESOURCE_GROUP }}"

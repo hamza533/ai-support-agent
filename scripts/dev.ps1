@@ -9,6 +9,7 @@ docker run --rm `
   -v brightline-nuget:/root/.nuget/packages `
   -v /var/run/docker.sock:/var/run/docker.sock `
   -e BRIGHTLINE_HOST=host.docker.internal `
+  -e PLAYWRIGHT_BROWSERS_PATH=/root/.nuget/packages/.ms-playwright `
   --add-host host.docker.internal:host-gateway `
   -w /src brightline-dev @cmd
 exit $LASTEXITCODE
