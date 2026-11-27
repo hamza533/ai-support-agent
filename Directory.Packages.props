@@ -25,9 +25,9 @@
     <PackageVersion Include="System.Threading.RateLimiting" Version="10.0.15" />
   </ItemGroup>
   <ItemGroup Label="Data">
-    <PackageVersion Include="Npgsql" Version="10.0.4" />
+    <PackageVersion Include="Npgsql" Version="11.0.0" />
     <PackageVersion Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.4" />
-    <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.4" />
+    <PackageVersion Include="Npgsql.OpenTelemetry" Version="11.0.0" />
     <PackageVersion Include="Pgvector" Version="0.3.2" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.15" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.15" />
