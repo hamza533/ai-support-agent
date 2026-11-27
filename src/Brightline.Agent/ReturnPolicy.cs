@@ -26,6 +26,9 @@ public sealed record EligibilityResult(
 /// </summary>
 public static class ReturnPolicy
 {
+    /// <summary>Never returnable, whatever the admin settings say (help centre policy).</summary>
+    public static readonly string[] NeverReturnable = ["Software", "Gift Cards"];
+
     public static EligibilityResult Evaluate(OrderDetail order, OrderLine line, ItemCondition condition, AgentSettings settings, DateTimeOffset now)
     {
         var reasons = new List<string>();
@@ -51,7 +54,8 @@ public static class ReturnPolicy
             }
         }
 
-        if (!settings.EligibleCategories.Contains(line.Category, StringComparer.OrdinalIgnoreCase))
+        if (NeverReturnable.Contains(line.Category, StringComparer.OrdinalIgnoreCase)
+            || !settings.EligibleCategories.Contains(line.Category, StringComparer.OrdinalIgnoreCase))
         {
             eligible = false;
             reasons.Add($"{line.Category} items can't be returned");

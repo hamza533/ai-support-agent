@@ -30,7 +30,7 @@ public interface IKnowledgeSearch
 /// Reciprocal Rank Fusion (score = Σ 1 / (k + rank)). Falls back to full-text only if embeddings are unavailable.
 /// </summary>
 public sealed partial class HybridSearch(
-    AppDbContext db,
+    IDbContextFactory<AppDbContext> dbFactory,
     IEmbeddingGenerator<string, Embedding<float>> embeddings,
     VectorStoreCollection<Guid, ChunkRecord> chunks,
     IOptions<KnowledgeOptions> options,
@@ -55,6 +55,7 @@ public sealed partial class HybridSearch(
         }
 
         var ids = fused.Select(f => f.Id).ToList();
+        await using var db = await dbFactory.CreateDbContextAsync(ct); // short-lived: search runs inside long Blazor circuits
         var rows = await db.Chunks.AsNoTracking()
             .Where(c => ids.Contains(c.Id))
             .Join(db.Sources, c => c.SourceId, s => s.Id, (c, s) => new { c.Id, c.SourceId, c.Title, s.Uri, c.HeadingPath, c.Page, c.Text })
@@ -104,6 +105,7 @@ public sealed partial class HybridSearch(
             return [];
         }
 
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
         return await db.Database.SqlQuery<Guid>($"""
             SELECT id AS "Value"
               FROM chunks

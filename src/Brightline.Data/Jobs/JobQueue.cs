@@ -53,18 +53,27 @@ public sealed class JobQueue(AppDbContext db, TimeProvider time)
         return job;
     }
 
-    /// <summary>Claims the next runnable job (queued and due, or running with an expired lease), or null.</summary>
+    /// <summary>
+    /// Claims the next runnable job (queued and due, or running with an expired lease), or null. A job whose lease
+    /// expired on its last attempt (e.g. it crashed the process every time) is dead-lettered instead of looping forever.
+    /// </summary>
     public async Task<Job?> ClaimAsync(TimeSpan lease, CancellationToken ct = default)
     {
         var now = time.GetUtcNow();
         var leaseUntil = now + lease;
+        await db.Database.ExecuteSqlInterpolatedAsync($"""
+            UPDATE jobs
+               SET status = 'Dead', error = 'Lease expired on the last attempt (the worker stopped or crashed while running it).',
+                   lease_until = NULL, completed_at = {now}, updated_at = {now}
+             WHERE status = 'Running' AND lease_until < {now} AND attempts >= max_attempts
+            """, ct);
         var jobs = await db.Jobs.FromSqlInterpolated($"""
             UPDATE jobs
                SET status = 'Running', lease_until = {leaseUntil}, attempts = attempts + 1, updated_at = {now}
              WHERE id = (
                    SELECT id FROM jobs
                     WHERE (status = 'Queued' AND run_after <= {now})
-                       OR (status = 'Running' AND lease_until < {now})
+                       OR (status = 'Running' AND lease_until < {now} AND attempts < max_attempts)
                     ORDER BY run_after, id
                     FOR UPDATE SKIP LOCKED
                     LIMIT 1)
@@ -73,15 +82,24 @@ public sealed class JobQueue(AppDbContext db, TimeProvider time)
         return jobs.SingleOrDefault();
     }
 
-    public Task ReportProgressAsync(long jobId, int percent, CancellationToken ct = default) =>
-        db.Jobs.Where(j => j.Id == jobId).ExecuteUpdateAsync(s => s
-            .SetProperty(j => j.Progress, Math.Clamp(percent, 0, 100))
-            .SetProperty(j => j.UpdatedAt, time.GetUtcNow()), ct);
-
-    public Task CompleteAsync(long jobId, CancellationToken ct = default)
+    /// <summary>Progress doubles as a heartbeat: it extends the lease of the attempt that is still running.</summary>
+    public Task ReportProgressAsync(Job job, int percent, TimeSpan lease, CancellationToken ct = default)
     {
         var now = time.GetUtcNow();
-        return db.Jobs.Where(j => j.Id == jobId).ExecuteUpdateAsync(s => s
+        return Running(job).ExecuteUpdateAsync(s => s
+            .SetProperty(j => j.Progress, Math.Clamp(percent, 0, 100))
+            .SetProperty(j => j.LeaseUntil, now + lease)
+            .SetProperty(j => j.UpdatedAt, now), ct);
+    }
+
+    /// <summary>Fencing: only the attempt that holds the job may update it (a stale worker whose lease expired can't).</summary>
+    private IQueryable<Job> Running(Job job) =>
+        db.Jobs.Where(j => j.Id == job.Id && j.Status == JobStatus.Running && j.Attempts == job.Attempts);
+
+    public Task<int> CompleteAsync(Job job, CancellationToken ct = default)
+    {
+        var now = time.GetUtcNow();
+        return Running(job).ExecuteUpdateAsync(s => s
             .SetProperty(j => j.Status, JobStatus.Succeeded)
             .SetProperty(j => j.Progress, 100)
             .SetProperty(j => j.Error, (string?)null)
@@ -99,7 +117,7 @@ public sealed class JobQueue(AppDbContext db, TimeProvider time)
         var runAfter = dead ? now : now + Backoff(job.Attempts);
         var trimmed = error.Length > 2000 ? error[..2000] : error;
 
-        await db.Jobs.Where(j => j.Id == job.Id).ExecuteUpdateAsync(s => s
+        await Running(job).ExecuteUpdateAsync(s => s
             .SetProperty(j => j.Status, status)
             .SetProperty(j => j.Error, trimmed)
             .SetProperty(j => j.RunAfter, runAfter)
@@ -110,8 +128,8 @@ public sealed class JobQueue(AppDbContext db, TimeProvider time)
     }
 
     /// <summary>Graceful shutdown: give the job back without counting the interrupted attempt.</summary>
-    public Task ReleaseAsync(long jobId, CancellationToken ct = default) =>
-        db.Jobs.Where(j => j.Id == jobId && j.Status == JobStatus.Running).ExecuteUpdateAsync(s => s
+    public Task ReleaseAsync(Job job, CancellationToken ct = default) =>
+        Running(job).ExecuteUpdateAsync(s => s
             .SetProperty(j => j.Status, JobStatus.Queued)
             .SetProperty(j => j.Attempts, j => j.Attempts > 0 ? j.Attempts - 1 : 0)
             .SetProperty(j => j.LeaseUntil, (DateTimeOffset?)null)

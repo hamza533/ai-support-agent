@@ -153,7 +153,13 @@ public static class OrdersEndpoints
             return Results.Problem(statusCode: StatusCodes.Status404NotFound, title: "Item not found on this order.");
         }
 
-        var remaining = line.Quantity - line.Returns.Where(r => r.Status != ReturnStatus.Rejected).Sum(r => r.Quantity);
+        // Lock the order line so concurrent requests (different idempotency keys) can't together return more than was bought.
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync($"SELECT 1 FROM order_lines WHERE id = {line.Id} FOR UPDATE", ct);
+        var alreadyReturned = await db.Returns
+            .Where(r => r.OrderLineId == line.Id && r.Status != ReturnStatus.Rejected)
+            .SumAsync(r => r.Quantity, ct);
+        var remaining = line.Quantity - alreadyReturned;
         if (request.Quantity > remaining)
         {
             return Results.Problem(
@@ -176,10 +182,12 @@ public static class OrdersEndpoints
         try
         {
             await db.SaveChangesAsync(ct);
+            await tx.CommitAsync(ct);
         }
         catch (DbUpdateException)
         {
             // A concurrent request with the same idempotency key won the race: return its result.
+            await tx.RollbackAsync(CancellationToken.None);
             db.ChangeTracker.Clear();
             var winner = await FindByKeyAsync(db, customerId, key, ct);
             if (winner is not null)

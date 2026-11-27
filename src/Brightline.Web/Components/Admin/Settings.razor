@@ -202,8 +202,17 @@ else
         }
 
         await using var scope = Scopes.CreateAsyncScope();
-        _generatedPassword = await scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>()
-            .CreateUserAsync(_newEmail.Trim(), _newRole == "admin" ? Roles.Admin : Roles.Staff, null);
+        try
+        {
+            _generatedPassword = await scope.ServiceProvider.GetRequiredService<IdentityBootstrapper>()
+                .CreateNewUserAsync(_newEmail.Trim(), _newRole == "admin" ? Roles.Admin : Roles.Staff);
+        }
+        catch (InvalidOperationException ex)
+        {
+            Toasts.Error("User not added", ex.Message);
+            return;
+        }
+
         _lastCreated = _newEmail.Trim();
         _newEmail = string.Empty;
         await LoadUsersAsync();

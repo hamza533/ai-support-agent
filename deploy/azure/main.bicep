@@ -320,6 +320,7 @@ var webEnv = concat(commonEnv, [
   { name: 'Auth__EntraId__ClientId', value: entraClientId }
   { name: 'Database__MigrateOnStartup', value: 'false' }
   { name: 'Demo__Enabled', value: 'false' }
+  { name: 'Security__TrustForwardedHeaders', value: 'true' } // Container Apps ingress is the only way in
 ])
 
 resource legacy 'Microsoft.App/containerApps@2024-03-01' = {

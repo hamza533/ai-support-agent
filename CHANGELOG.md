@@ -30,3 +30,9 @@ All notable changes to this project are documented here. Format: [Keep a Changel
   profile validated in CI; disabled-by-default deploy workflow; full README.
 ### Fixed
 - Admin transcript rendered escaped HTML for assistant messages; tool-only turns no longer store empty messages.
+- Independent review fixes: parallel read+write tool calls no longer produce a blocked card; order-system outage while
+  building a confirmation card shows a ticket offer; citation numbers stay stable across turns; return idempotency keyed
+  on the order line + legacy row lock against concurrent over-returns; poison jobs dead-letter, lease heartbeat and
+  fencing; re-index failures keep the old version; verification no longer acts as an oracle; ticket order links are
+  ownership-checked; model links limited to this site; admin "Add user" can't reset accounts; forwarded headers trusted
+  only when configured.

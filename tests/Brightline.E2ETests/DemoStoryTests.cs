@@ -153,7 +153,9 @@ public sealed class DemoStoryTests : IAsyncLifetime
         await ShotAsync(staff, "05-tickets");
 
         // ...and the audit trail shows the approved write
-        await staff.GetByTestId("ticket-table").GetByRole(AriaRole.Link, new() { Name = "View" }).First.ClickAsync();
+        // Follow the row's conversation link (href navigation: independent of when the circuit becomes interactive).
+        var conversationHref = await staff.GetByTestId("ticket-table").GetByRole(AriaRole.Link, new() { Name = "View" }).First.GetAttributeAsync("href");
+        await staff.GotoAsync($"{_appUrl}{conversationHref}");
         await Assertions.Expect(staff.Locator(".tid-agent-trace")).ToContainTextAsync("create_return_request");
         await Assertions.Expect(staff.Locator(".tid-agent-trace")).ToContainTextAsync("Approved by customer");
         await Assertions.Expect(staff.Locator(".tid-transcript a.cite").First).ToHaveTextAsync("1"); // rendered, not escaped HTML

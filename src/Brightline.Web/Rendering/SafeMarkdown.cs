@@ -9,8 +9,7 @@ using Microsoft.AspNetCore.Components;
 namespace Brightline.Web.Rendering;
 
 /// <summary>
-/// Renders model and document Markdown safely: raw HTML is escaped (DisableHtml), links are limited to http(s) and
-/// relative URLs, and [n] markers become links to the cited help article.
+/// Renders model and document Markdown safely: raw HTML is escaped (DisableHtml), links are limited to this site, and [n] markers become links to the cited help article.
 /// </summary>
 public static partial class SafeMarkdown
 {
@@ -53,10 +52,9 @@ public static partial class SafeMarkdown
     }
 
     internal static bool IsSafeUrl(string? url) =>
+        // Only links within this site: an injected document can't make the assistant render a phishing link.
         !string.IsNullOrWhiteSpace(url)
-        && (url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
-            || url.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || (url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal))
+        && ((url.StartsWith('/') && !url.StartsWith("//", StringComparison.Ordinal) && !url.StartsWith("/\\", StringComparison.Ordinal))
             || url.StartsWith('#'));
 
     [GeneratedRegex(@"\[(\d{1,2})\]")]
