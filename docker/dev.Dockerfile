@@ -2,7 +2,7 @@
 # Lets any machine with Docker run the same `make` targets as CI.
 FROM docker:29-cli AS dockercli
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0.404
+FROM mcr.microsoft.com/dotnet/sdk:11.0.100
 RUN apt-get update \
  && apt-get install -y --no-install-recommends make \
  && rm -rf /var/lib/apt/lists/*
