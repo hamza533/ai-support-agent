@@ -3,7 +3,7 @@
 ## Status
 - **Current milestone:** M9 – Final check
 - **Done:** M0 foundation; M1 legacy Orders API + typed client; M2 app DB (EF migrations incl. pgvector/tsvector), Identity (admin/staff, optional Entra ID), Data Protection keys in DB, Postgres job queue + worker + retention purge, health/ready, rate limiting, security headers/CSP, OpenTelemetry; M3 AI provider switch (Gemini compat / Azure OpenAI / OpenAI) + knowledge base (PDF/DOCX/MD parsing, chunking, pgvector + FTS hybrid search with RRF, atomic re-index, durable ingestion jobs, 10 synthetic help-centre docs); M4 Agent Framework agent with 7 tools, server-side verification, approval-gated writes with server-built confirmation cards, idempotency keys, injection-safe prompt, citation binding; M5 customer Help Center + streaming chat (citations, verified chip, order card, confirmation cards, What I did, ticket offer, order-system-down state, cold-start message) with bUnit tests; M6 admin console (overview stats + chart, conversations with transcript/citations/agent trace/tokens/cost, tickets with drawer, documents + live ingestion jobs with retry, settings with admin-only save and locked approvals, staff users, Test as customer); M7 eval harness (40+8 questions with AI.Evaluation quality evaluators, 25 agent scenarios with DB + legacy-state assertions, performance metrics, results.md/json writer); M8 Playwright E2E (chat → verify → return with confirmation → staff sees ticket, real browser), demo mode (cap, nightly reset, read-only staff), render.yaml + Render/Neon guide, Azure Bicep (validated: build + lint), CI (e2e, images + Trivy, Bicep), disabled-by-default deploy workflow, README; M9 independent code review with fixes and regression tests (128 tests + E2E green)
-- **In progress:** – (all build work and the live eval are done; remaining items need the user: GitHub remote, Render/Neon deploy, GIF/video)
+- **In progress:** live demo on Render + Neon (repo is on GitHub, CI green; waiting for the Neon/Render accounts)
 - **Next:** re-run `make eval` after the Gemini daily quota resets (Flash-Lite free tier: 500 requests/day; one full run is close to that) and commit `eval/results.*` + README numbers – the committed results are from before the S07 prompt fix and the throttle change. Then deploy the demo (Render + Neon) and record GIF/video.
 
 | # | Milestone | Status |
@@ -42,7 +42,7 @@
 - [x] `docker compose up` works on a clean machine (verified with a fresh volume).
 - [x] Evaluation numbers in README (from `eval/results.md`).
 - [ ] CI green – needs a GitHub remote (workflows are in place).
-- [ ] Demo GIF + 60–90 s video – user records.
+- [x] Demo GIF (`docs/images/demo.gif`) + 76 s video (`docs/media/brightline-demo.mp4`), recorded with the real model by `scripts/record-demo.sh`.
 - [ ] Live demo deployed – user creates Neon + Render (guide: docs/deploy-render-neon.md).
 - [ ] Upwork case study – eval numbers are ready.
 
@@ -50,7 +50,7 @@
 1. ~~Gemini key + `make eval`~~ – done 2026-11-27. Re-run `make eval` after prompt or model changes and commit `eval/results.*`.
 2. Push to GitHub (enables CI, CodeQL, Dependabot).
 3. Create Neon databases + Render services (docs/deploy-render-neon.md); add the demo link and demo staff credentials to the README.
-4. Record the demo GIF (`docs/images/demo.gif`) and a 60–90 s video.
+4. ~~Record the demo GIF and video~~ – done 2026-11-28 (`scripts/record-demo.sh`; re-record against the live demo if wanted).
 5. Optional: export the Stitch screens into `docs/ui/` for a pixel comparison; optional Entra ID app registration.
 
 ## Blockers / open questions
@@ -98,3 +98,4 @@ Expected: build succeeds with 0 warnings, `dotnet format --verify-no-changes` cl
 - 2026-11-27 – Claude Code – First live eval: fixed Gemini 3 tool calls (thought signatures echoed back via GeminiThoughtSignaturePolicy, DECISIONS 54) and the retired default chat model (now gemini-3.6-flash); 133 tests green. Full eval blocked by the free-tier daily quota.
 - 2026-11-27 – Claude Code – Full live eval on Flash-Lite: fixed judge options Gemini rejects (seed, frequency_penalty), ticket idempotency keyed on category + verified order (S19 duplicate), seeded BL-10600/BL-10611 in the real legacy seed (S12/S25), AggregateException → "assistant unavailable"; defaults moved to Flash-Lite; README Results filled in; 138 tests green.
 - 2026-11-27 – Claude Code – S07 prompt fix (eligibility checked on its own and stated before the return card) and smooth throttle with queue time excluded from eval TTFT; 141 tests green. Third eval run hit the 500/day Flash-Lite quota at S13 (not published): S01–S13 all passed incl. S07, quality 4.90/4.62/4.80, TTFT p50 2.2 s / p95 3.7 s. Committed results stay from run 2 until a full re-run.
+- 2026-11-28 – Claude Code – Repo published (github.com/hamza533/ai-support-agent), CI green after fixing a test-order dependency and a bad trivy-action pin. Demo GIF + 76 s video recorded with the real model (scripts/record-demo.sh: Chrome screencast frames, model waits compressed and marked on screen); recorded with gemini-3.1-flash-lite because 3.5-flash-lite's daily quota was spent. Fixed long source titles overflowing the chat panel.
