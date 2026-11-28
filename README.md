@@ -1,11 +1,10 @@
 # Brightline AI Support Agent (.NET 10)
 
-<!-- Demo GIF: record with `make dev` and save as docs/images/demo.gif, then replace this screenshot (docs/PROGRESS.md). -->
-![Customer chat: verified order, and a confirmation card before the return is created](docs/images/02c-confirmation-card.png)
+![Demo: a cited policy answer, order verification, and a confirmation card before the return and the support ticket are created](docs/images/demo.gif)
 
 **Add an AI agent to your existing .NET systems: it answers from your documents and safely acts through your current APIs — for companies that want AI customer support without a rewrite or moving data out of their Azure tenant.**
 
-[Live demo](#live-demo) · [2-min video](#live-demo) · [Architecture](docs/architecture.md) · [Evaluation](eval/results.md) · [Decisions](docs/DECISIONS.md)
+[Live demo](#live-demo) · [Demo video (76 s)](docs/media/brightline-demo.mp4) · [Architecture](docs/architecture.md) · [Evaluation](eval/results.md) · [Decisions](docs/DECISIONS.md)
 
 ## What it does
 
@@ -186,6 +185,12 @@ Non-root containers, pinned images, Dependabot, CodeQL and Trivy in CI. Migratio
 The demo runs on Render (two Docker services) + Neon in demo mode: 40 conversations per day, per-IP rate limits,
 nightly reset of order data, and a read-only staff account. Setup guide: [docs/deploy-render-neon.md](docs/deploy-render-neon.md).
 _Link and demo staff credentials are added here after deployment (see docs/PROGRESS.md)._
+
+**Demo video:** [docs/media/brightline-demo.mp4](docs/media/brightline-demo.mp4) (76 s) – the whole story with the real model:
+cited policy answer → order verification → eligibility → confirmation card → return and ticket created → staff console
+with the agent trace. Waits for the model are sped up (marked on screen). Re-record against any running instance with
+`./scripts/dev.sh scripts/record-demo.sh` (needs `RECORDING_STAFF_EMAIL` / `RECORDING_STAFF_PASSWORD` in `.env`); the GIF
+above is cut from the same recording.
 
 ## Limitations & next steps
 
